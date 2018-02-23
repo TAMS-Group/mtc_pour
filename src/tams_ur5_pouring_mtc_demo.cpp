@@ -77,7 +77,12 @@ int main(int argc, char** argv){
 	t.setProperty("eef", "gripper");
 	t.setProperty("gripper", "gripper"); // TODO: use this
 
-	t.add(std::make_unique<stages::CurrentState>("current state"));
+	Stage* current_state= nullptr;
+	{
+		auto _current_state = std::make_unique<stages::CurrentState>("current state");
+		current_state= _current_state.get();
+		t.add(std::move(_current_state));
+	}
 
 	{
 		auto stage = std::make_unique<stages::MoveTo>("open gripper", sampling_planner);
@@ -113,6 +118,8 @@ int main(int argc, char** argv){
 		stage->setObject("bottle");
 		stage->setToolToGraspTF(Eigen::Translation3d(0,0,0), "s_model_tool0");
 		stage->setAngleDelta(M_PI/6);
+
+		stage->setMonitoredStage(current_state);
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage) );
 		wrapper->setMaxIKSolutions(8);
