@@ -64,10 +64,6 @@ PourInto::PourInto(std::string name) :
 	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
 }
 
-void PourInto::init(const planning_scene::PlanningSceneConstPtr& scene) {
-	PropagatingForward::init(scene);
-}
-
 bool PourInto::computeForward(const InterfaceState& from) {
 	planning_scene::PlanningScenePtr to;
 	SubTrajectory trajectory;

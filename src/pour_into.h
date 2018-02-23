@@ -57,7 +57,6 @@ class PourInto : public PropagatingForward {
 public:
 	PourInto(std::string name);
 
-	void init(const planning_scene::PlanningSceneConstPtr &scene) override;
 	bool computeForward(const InterfaceState& from) override;
 
 	void setGroup(std::string group_name){
