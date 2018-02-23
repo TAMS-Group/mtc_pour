@@ -180,10 +180,16 @@ int main(int argc, char** argv){
 
 	// TODO: t.validate();
 
-	t.plan();
+	try {
+		t.plan();
 
-	std::cout << "waiting for <enter>" << std::endl;
-	std::cin.get();
+		std::cout << "waiting for <enter>" << std::endl;
+		std::cin.get();
+	}
+	catch(InitStageException& e){
+		ROS_ERROR_STREAM(e);
+	}
+
 
 	return 0;
 }
