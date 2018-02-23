@@ -61,6 +61,7 @@ PourInto::PourInto(std::string name) :
 
 	p.declare<double>("tilt_angle", "maximum tilt-angle for the bottle");
 	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
+	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
 }
 
 void PourInto::init(const planning_scene::PlanningSceneConstPtr& scene) {
@@ -113,6 +114,8 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	const Eigen::Translation3d pour_offset( props.get<Eigen::Vector3d>("pour_offset") );
 	const auto& tilt_angle= props.get<double>("tilt_angle");
+
+	const ros::Duration pour_duration( props.get<ros::Duration>("pour_duration") );
 
 	const planning_scene::PlanningScene& scene= *input.scene();
 	moveit::core::RobotModelConstPtr robot_model= scene.getRobotModel();
@@ -201,13 +204,19 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		robot_trajectory->addSuffixWayPoint(waypoint, 0.0);
 	}
 
+	robot_trajectory::RobotTrajectory back_trajectory(*robot_trajectory);
+	back_trajectory.reverse();
+
 	trajectory_processing::IterativeParabolicTimeParameterization iptp;
 	iptp.computeTimeStamps(*robot_trajectory);
+	iptp.computeTimeStamps(back_trajectory);
+
+	robot_trajectory->append(back_trajectory, pour_duration.toSec());
 
 	trajectory.setTrajectory(robot_trajectory);
 
 	result= scene.diff();
-	result->setCurrentState(*traj.back());
+	result->setCurrentState(robot_trajectory->getLastWayPoint());
 
 	if ( path_fraction < 1.0 - .1 ){
 		ROS_WARN_STREAM("PourInto only produced motion for " << path_fraction << " of the way. Rendering invalid");

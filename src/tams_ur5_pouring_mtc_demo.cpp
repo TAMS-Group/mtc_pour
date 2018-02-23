@@ -42,8 +42,8 @@ void spawnObjects(){
 	objects.push_back(o);
 
 	o.id= "glass";
-	o.primitive_poses[0].position.x= -0.2;
-	o.primitive_poses[0].position.y= -0.05;
+	o.primitive_poses[0].position.x= -0.1;
+	o.primitive_poses[0].position.y= -0.01;
 	o.primitive_poses[0].position.z= 0.06;
 	o.primitives[0].dimensions[0]= 0.11;
 	objects.push_back(o);
@@ -122,6 +122,7 @@ int main(int argc, char** argv){
 		t.add(std::move(wrapper));
 	}
 
+	// TODO: encapsulate these three states in stages::Grasp or similar
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
 		stage->enableCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), true);
@@ -144,7 +145,7 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("lift object", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.25,.3);
+		stage->setMinMaxDistance(.20,.3);
 		stage->setLink("s_model_tool0"); // TODO property for frame
 
 		stage->properties().set("marker_ns", "lift");
