@@ -17,6 +17,7 @@
 #include <moveit/task_constructor/stages/modify_planning_scene.h>
 
 #include <moveit/task_constructor/stages/generate_grasp_pose.h>
+#include <moveit/task_constructor/stages/generate_pose.h>
 
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
@@ -143,9 +144,11 @@ int main(int argc, char** argv){
 		t.add(std::move(stage));
 	}
 
+	Stage* object_grasped= nullptr;
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("attach object");
 		stage->attachObject("bottle", "s_model_tool0");
+		object_grasped= stage.get();
 		t.add(std::move(stage));
 	}
 
@@ -163,6 +166,32 @@ int main(int argc, char** argv){
 		stage->along(vec);
 		t.add(std::move(stage));
 	}
+
+	//{
+	//	auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", sampling_planner);
+	//	stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
+	//	t.add(std::move(stage));
+	//}
+
+	//{
+	//	auto stage = std::make_unique<stages::GeneratePose>("pose above glass");
+	//	geometry_msgs::PoseStamped p;
+	//	p.header.frame_id= "glass";
+	//	p.pose.orientation.w= 1;
+	//	p.pose.position.z= .3;
+	//	stage->setPose(p);
+	//	stage->properties().configureInitFrom(Stage::PARENT);
+
+	//	//TODO: stage->setMonitoredStage(object_grasped);
+	//	stage->setMonitoredStage(current_state);
+
+	//	auto wrapper = std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage) );
+	//	wrapper->setMaxIKSolutions(8);
+	//	// TODO adding this will initialize "target_pose" which is internal (or isn't it?)
+	//	//wrapper->properties().configureInitFrom(Stage::PARENT);
+	//	wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+	//	t.add(std::move(wrapper));
+	//}
 
 	{
 		auto stage = std::make_unique<mtc_pour::PourInto>("test pouring");
