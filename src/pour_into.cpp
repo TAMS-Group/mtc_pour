@@ -154,6 +154,10 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	EigenSTL::vector_Affine3d waypoints;
 	computePouringWaypoints(bottle_tip_in_container_frame, tilt_angle, pour_offset, waypoints);
 
+	// TODO: possibly also spawn alternatives:
+	//for(auto& waypoint : waypoints)
+	//	waypoint= Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()) * waypoint * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ());
+
 	for(auto& waypoint : waypoints)
 		waypoint= container_frame*waypoint;
 
