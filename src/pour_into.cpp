@@ -118,24 +118,16 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	const moveit::core::JointModelGroup* group= robot_model->getJointModelGroup(props.get<std::string>("group"));
 
 	moveit_msgs::CollisionObject container;
-	if(!scene.getCollisionObjectMsg(container, container_name)){
-		ROS_ERROR_STREAM("container object '" << container_name << "' is not specified in input planning scene");
-		return false;
-	}
-	if(container.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER){
-		ROS_ERROR("PourInto expects container to be a cylinder");
-		return false;
-	}
+	if(!scene.getCollisionObjectMsg(container, container_name))
+		throw std::runtime_error("container object '" + container_name + "' is not specified in input planning scene");
+	if(container.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER)
+		throw std::runtime_error("PourInto expects container to be a cylinder");
 
 	moveit_msgs::AttachedCollisionObject bottle;
-	if(!scene.getAttachedCollisionObjectMsg(bottle, bottle_name)){
-		ROS_ERROR_STREAM("bottle '" << bottle_name << "' is not an attached collision object in input planning scene");
-		return false;
-	}
-	if(bottle.object.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER){
-		ROS_ERROR("PourInto expects bottle object to have a cylinder as bottle tip as first primitive");
-		return false;
-	}
+	if(!scene.getAttachedCollisionObjectMsg(bottle, bottle_name))
+		throw std::runtime_error("bottle '" + bottle_name + "' is not an attached collision object in input planning scene");
+	if(bottle.object.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER)
+		throw std::runtime_error("PourInto expects bottle object to have a cylinder as bottle tip as first primitive");
 
 	moveit::core::RobotState state(scene.getCurrentState());
 
