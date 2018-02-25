@@ -183,7 +183,6 @@ int main(int argc, char** argv){
 		stage->properties().configureInitFrom(Stage::PARENT);
 
 		stage->setMonitoredStage(object_grasped);
-		//stage->setMonitoredStage(current_state);
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage) );
 		wrapper->setMaxIKSolutions(8);
