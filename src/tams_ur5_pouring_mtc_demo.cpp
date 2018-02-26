@@ -193,12 +193,96 @@ int main(int argc, char** argv){
 	}
 
 	{
-		auto stage = std::make_unique<mtc_pour::PourInto>("test pouring");
+		auto stage = std::make_unique<mtc_pour::PourInto>("pouring");
 		stage->setBottle("bottle");
 		stage->setContainer("glass");
 		stage->setPourOffset(Eigen::Vector3d(0,0.01,0.03));
 		stage->setTiltAngle(2.0);
 		stage->properties().configureInitFrom(Stage::PARENT);
+		t.add(std::move(stage));
+	}
+
+	// PLACE
+
+	{
+		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", sampling_planner);
+		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
+		t.add(std::move(stage));
+	}
+
+	{
+		auto stage = std::make_unique<stages::MoveRelative>("put down object", cartesian_planner);
+		stage->properties().set("marker_ns", "approach_place"); // TODO: convenience wrapper
+		stage->properties().set("link", "s_model_tool0");
+		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+		stage->setMinMaxDistance(.08, .10);
+
+		geometry_msgs::Vector3Stamped vec;
+		vec.header.frame_id = "s_model_tool0";
+		vec.vector.z = -1.0;
+		stage->along(vec);
+		t.add(std::move(stage));
+	}
+
+	{
+		auto stage = std::make_unique<stages::GeneratePose>("place pose");
+		geometry_msgs::PoseStamped p;
+		p.header.frame_id= "table_top";
+		p.pose.orientation.w= 1;
+		p.pose.position.x= -0.03;
+		p.pose.position.y=  0.30;
+		p.pose.position.z=  0.125;
+		stage->setPose(p);
+		stage->properties().configureInitFrom(Stage::PARENT);
+
+		stage->setMonitoredStage(object_grasped);
+
+		auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics", std::move(stage) );
+		wrapper->setMaxIKSolutions(8);
+		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+		t.add(std::move(wrapper));
+	}
+
+	{
+		auto stage = std::make_unique<stages::MoveTo>("release object", sampling_planner);
+		stage->properties().property("group").configureInitFrom(Stage::PARENT, "gripper"); // TODO this is not convenient
+		stage->setGoal("open");
+		t.add(std::move(stage));
+	}
+
+	{
+		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
+		stage->enableCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), false);
+		t.add(std::move(stage));
+	}
+
+	{
+		auto stage = std::make_unique<stages::ModifyPlanningScene>("detach object");
+		stage->detachObject("bottle", "s_model_tool0");
+		object_grasped= stage.get();
+		t.add(std::move(stage));
+	}
+
+	{
+		auto stage = std::make_unique<stages::MoveRelative>("retreat after place", cartesian_planner);
+		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+		stage->setMinMaxDistance(.20,.3);
+		stage->setLink("s_model_tool0"); // TODO property for frame
+
+		stage->properties().set("marker_ns", "lift");
+
+		geometry_msgs::Vector3Stamped vec;
+		vec.header.frame_id= "s_model_tool0";
+		vec.vector.x= -1.0;
+		//vec.vector.z= -1.0;
+		stage->along(vec);
+		t.add(std::move(stage));
+	}
+
+	{
+		auto stage = std::make_unique<stages::MoveTo>("move home", sampling_planner);
+		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+		stage->setGoal("home");
 		t.add(std::move(stage));
 	}
 
