@@ -22,9 +22,9 @@ add_library(mtc_pour_into src/pour_into.cpp)
 add_dependencies(mtc_pour_into ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mtc_pour_into ${catkin_LIBRARIES})
 
-add_executable(${PROJECT_NAME}_demo src/tams_ur5_pouring_mtc_demo.cpp)
-add_dependencies(${PROJECT_NAME}_demo ${catkin_EXPORTED_TARGETS})
-target_link_libraries(${PROJECT_NAME}_demo
+add_executable(${PROJECT_NAME}_tams_ur5_demo src/mtc_pour_tams_ur5_demo.cpp)
+add_dependencies(${PROJECT_NAME}_tams_ur5_demo ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_tams_ur5_demo
 	mtc_pour_into
 	${catkin_LIBRARIES}
 )
