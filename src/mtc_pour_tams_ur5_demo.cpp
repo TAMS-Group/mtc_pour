@@ -3,6 +3,9 @@
 #include <moveit/robot_model/robot_model.h> // TODO shouldn't be necessary...
 
 #include <moveit/planning_scene_interface/planning_scene_interface.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+
+#include <moveit_task_constructor_msgs/Solution.h>
 
 #include <moveit/task_constructor/task.h>
 
@@ -21,6 +24,43 @@
 
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
+
+using namespace moveit::task_constructor;
+
+ros::Subscriber solution_listener;
+
+void monitorSolution(const moveit_task_constructor_msgs::Solution& solution){
+	// we are only looking for one solution
+	solution_listener.shutdown();
+
+	ROS_INFO("Received first solution. Executing.");
+
+	moveit::planning_interface::PlanningSceneInterface psi;
+	moveit::planning_interface::MoveGroupInterface mgi("arm");
+
+	moveit::planning_interface::MoveGroupInterface::Plan plan;
+
+	for(const moveit_task_constructor_msgs::SubTrajectory& traj : solution.sub_trajectory){
+		if( traj.trajectory.joint_trajectory.points.empty() ){
+			ROS_INFO("skipping empty trajectory");
+		}
+		else {
+			plan.trajectory_= traj.trajectory;
+			if(!static_cast<bool>(mgi.execute(plan))){
+				ROS_ERROR("Execution failed! Aborting!");
+				ros::Duration(5.0).sleep();
+				mgi.setNamedTarget("home");
+				mgi.move();
+				return;
+			}
+		}
+		psi.applyPlanningScene(traj.scene_diff);
+	}
+
+	ROS_INFO("Executed successfully.");
+	ros::shutdown();
+}
+
 
 void spawnObjects(){
 	moveit::planning_interface::PlanningSceneInterface psi;
@@ -52,12 +92,10 @@ void spawnObjects(){
 	psi.applyCollisionObjects(objects);
 }
 
-using namespace moveit::task_constructor;
-
 int main(int argc, char** argv){
 	ros::init(argc, argv, "mtc_pouring");
 
-	ros::AsyncSpinner spinner(1);
+	ros::AsyncSpinner spinner(2);
 	spinner.start();
 
 	spawnObjects();
@@ -308,6 +346,15 @@ int main(int argc, char** argv){
 
 	t.enableIntrospection();
 
+	ros::NodeHandle nh("~");
+
+	bool execute= nh.param<bool>("execute", false);
+
+	if(execute){
+		ROS_INFO("Going to execute first computed solution");
+		solution_listener= nh.subscribe("solution", 1, &monitorSolution);
+	}
+
 	ROS_INFO_STREAM( t );
 
 	// TODO: t.validate();
@@ -315,13 +362,16 @@ int main(int argc, char** argv){
 	try {
 		t.plan();
 
-		std::cout << "waiting for <enter>" << std::endl;
-		std::cin.get();
+		if(!execute){
+			std::cout << "waiting for <enter>" << std::endl;
+			std::cin.get();
+		}
 	}
 	catch(InitStageException& e){
 		ROS_ERROR_STREAM(e);
 	}
 
+	ros::waitForShutdown();
 
 	return 0;
 }
