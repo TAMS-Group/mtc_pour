@@ -74,18 +74,18 @@ int main(int argc, char** argv){
 
 	// don't spill liquid
 	moveit_msgs::Constraints upright_constraint;
-	//upright_constraint.name = "s_model_tool0:upright:20000:high";
-	//upright_constraint.orientation_constraints.resize(1);
-	//{
-	//	moveit_msgs::OrientationConstraint& c= upright_constraint.orientation_constraints[0];
-	//	c.link_name= "s_model_tool0";
-	//	c.header.frame_id= "table_top";
-	//	c.orientation.w= 1.0;
-	//	c.absolute_x_axis_tolerance= 0.65;
-	//	c.absolute_y_axis_tolerance= 0.65;
-	//	c.absolute_z_axis_tolerance= M_PI;
-	//	c.weight= 1.0;
-	//}
+	upright_constraint.name = "s_model_tool0:upright:20000:high";
+	upright_constraint.orientation_constraints.resize(1);
+	{
+		moveit_msgs::OrientationConstraint& c= upright_constraint.orientation_constraints[0];
+		c.link_name= "s_model_tool0";
+		c.header.frame_id= "table_top";
+		c.orientation.w= 1.0;
+		c.absolute_x_axis_tolerance= 0.65;
+		c.absolute_y_axis_tolerance= 0.65;
+		c.absolute_z_axis_tolerance= M_PI;
+		c.weight= 1.0;
+	}
 
 	auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
 
