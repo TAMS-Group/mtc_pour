@@ -130,7 +130,7 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::GenerateGraspPose>("grasp work space pose");
 		stage->properties().configureInitFrom(Stage::PARENT);
-		stage->setGripperGraspPose("open");
+		stage->setNamedPose("open");
 		stage->setObject("bottle");
 		stage->setToolToGraspTF(Eigen::Translation3d(0,0,0), "s_model_tool0");
 		stage->setAngleDelta(M_PI/6);
