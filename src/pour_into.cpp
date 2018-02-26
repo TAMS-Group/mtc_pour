@@ -165,8 +165,18 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		geometry_msgs::PoseStamped p;
 		p.header.frame_id= scene.getPlanningFrame();
 		tf::poseEigenToMsg(waypoint, p.pose);
-		// TODO: rename or move this package. could be moved to moveit_visual_tools
-		rviz_marker_tools::appendFrame(trajectory.markers(), p, 0.1, "pouring waypoints");
+
+		visualization_msgs::Marker tip;
+		tip.ns= "pouring waypoints";
+		tip.header= p.header;
+		tip.pose= rviz_marker_tools::composePoses(p.pose, Eigen::Affine3d(Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(0,1,0))));
+		tip.color.r= .588;
+		tip.color.g= .196;
+		tip.color.b= .588;
+		tip.color.a= 1.0;
+		// TODO: rename or move this package! maybe move it in with moveit_visual_tools?
+		rviz_marker_tools::makeArrow(tip, .11, true);
+		trajectory.markers().push_back(tip);
 	}
 
 	for(auto& waypoint : waypoints)

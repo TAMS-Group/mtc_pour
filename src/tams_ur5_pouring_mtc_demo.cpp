@@ -31,8 +31,8 @@ void spawnObjects(){
 	o.id= "bottle";
 	o.header.frame_id= "table_top";
 	o.primitive_poses.resize(1);
-	o.primitive_poses[0].position.x= -0.15;
-	o.primitive_poses[0].position.y= 0.25;
+	o.primitive_poses[0].position.x= 0.0;
+	o.primitive_poses[0].position.y= 0.15;
 	o.primitive_poses[0].position.z= 0.12;
 	o.primitive_poses[0].orientation.w= 1.0;
 	o.primitives.resize(1);
@@ -44,7 +44,7 @@ void spawnObjects(){
 
 	o.id= "glass";
 	o.primitive_poses[0].position.x= -0.1;
-	o.primitive_poses[0].position.y= -0.01;
+	o.primitive_poses[0].position.y= -0.12;
 	o.primitive_poses[0].position.z= 0.06;
 	o.primitives[0].dimensions[0]= 0.11;
 	objects.push_back(o);
@@ -68,8 +68,8 @@ int main(int argc, char** argv){
    // TODO: id of solution in rviz panel is sometimes 0 and then changes
 
 	auto sampling_planner = std::make_shared<solvers::PipelinePlanner>();
-	// TODO: timeout is still 10 in move to pre-grasp
-	sampling_planner->setTimeout(15.0);
+	// TODO: ignored because it is always overruled by Connect's timeout property
+	//sampling_planner->setTimeout(15.0);
 	//pipeline->setPlannerId("");
 
 	auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
@@ -103,7 +103,7 @@ int main(int argc, char** argv){
 		stage->properties().set("marker_ns", "approach"); // TODO: convenience wrapper
 		stage->properties().set("link", "s_model_tool0");
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.08, .15);
+		stage->setMinMaxDistance(.15, .25);
 
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id = "s_model_tool0";
@@ -155,7 +155,7 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("lift object", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.20,.3);
+		stage->setMinMaxDistance(.08,.13);
 		stage->setLink("s_model_tool0"); // TODO property for frame
 
 		stage->properties().set("marker_ns", "lift");
@@ -215,7 +215,7 @@ int main(int argc, char** argv){
 		stage->properties().set("marker_ns", "approach_place"); // TODO: convenience wrapper
 		stage->properties().set("link", "s_model_tool0");
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.08, .10);
+		stage->setMinMaxDistance(.08, .13);
 
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id = "s_model_tool0";
@@ -229,8 +229,8 @@ int main(int argc, char** argv){
 		geometry_msgs::PoseStamped p;
 		p.header.frame_id= "table_top";
 		p.pose.orientation.w= 1;
-		p.pose.position.x= -0.03;
-		p.pose.position.y=  0.30;
+		p.pose.position.x= -0.15;
+		p.pose.position.y=  0.35;
 		p.pose.position.z=  0.125;
 		stage->setPose(p);
 		stage->properties().configureInitFrom(Stage::PARENT);
@@ -239,6 +239,7 @@ int main(int argc, char** argv){
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics", std::move(stage) );
 		wrapper->setMaxIKSolutions(8);
+		// TODO: optionally in object frame
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
 		t.add(std::move(wrapper));
 	}
@@ -266,15 +267,15 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("retreat after place", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.20,.3);
+		stage->setMinMaxDistance(.15,.25);
 		stage->setLink("s_model_tool0"); // TODO property for frame
 
-		stage->properties().set("marker_ns", "lift");
+		stage->properties().set("marker_ns", "post-place");
 
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id= "s_model_tool0";
 		vec.vector.x= -1.0;
-		//vec.vector.z= -1.0;
+		vec.vector.z= 0.75;
 		stage->along(vec);
 		t.add(std::move(stage));
 	}
