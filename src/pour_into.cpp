@@ -36,7 +36,7 @@
    Desc:    Pour from attached bottle into(onto) an object
 */
 
-#include "pour_into.h"
+#include <moveit/task_constructor/stages/pour_into.h>
 
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/robot_state.h>

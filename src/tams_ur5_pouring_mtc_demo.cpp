@@ -12,7 +12,7 @@
 #include <moveit/task_constructor/stages/connect.h>
 #include <moveit/task_constructor/stages/compute_ik.h>
 
-#include "pour_into.h"
+#include <moveit/task_constructor/stages/pour_into.h>
 
 #include <moveit/task_constructor/stages/modify_planning_scene.h>
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(tams_ur5_pouring_mtc)
+project(mtc_pour)
 
 add_compile_options(-std=c++14)
 
@@ -8,7 +8,10 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
 )
 
-catkin_package()
+catkin_package(
+	INCLUDE_DIRS include
+	LIBRARIES mtc_pour_into
+)
 
 include_directories(
   include

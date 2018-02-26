@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>tams_ur5_pouring_mtc</name>
+  <name>mtc_pour</name>
   <version>0.0.0</version>
-  <description>The tams_ur5_pouring_mtc package</description>
+  <description>Implement pouring stage and examples</description>
 
   <maintainer email="me@v4hn.de">Michael 'v4hn' Goerner</maintainer>
 
