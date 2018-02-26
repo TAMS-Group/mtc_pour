@@ -72,6 +72,21 @@ int main(int argc, char** argv){
 	//sampling_planner->setTimeout(15.0);
 	//pipeline->setPlannerId("");
 
+	// don't spill liquid
+	moveit_msgs::Constraints upright_constraint;
+	//upright_constraint.name = "s_model_tool0:upright:20000:high";
+	//upright_constraint.orientation_constraints.resize(1);
+	//{
+	//	moveit_msgs::OrientationConstraint& c= upright_constraint.orientation_constraints[0];
+	//	c.link_name= "s_model_tool0";
+	//	c.header.frame_id= "table_top";
+	//	c.orientation.w= 1.0;
+	//	c.absolute_x_axis_tolerance= 0.65;
+	//	c.absolute_y_axis_tolerance= 0.65;
+	//	c.absolute_z_axis_tolerance= M_PI;
+	//	c.weight= 1.0;
+	//}
+
 	auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
 
 	t.setProperty("group", "arm");
@@ -169,6 +184,8 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", sampling_planner);
+		stage->setTimeout(ros::Duration(20.0));
+		stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
 	}
@@ -206,6 +223,8 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", sampling_planner);
+		stage->setTimeout(ros::Duration(20.0));
+		stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
 	}
