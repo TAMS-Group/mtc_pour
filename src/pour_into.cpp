@@ -14,7 +14,7 @@
  *     copyright notice, this list of conditions and the following
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
- *   * Neither the name of Bielefeld University nor the names of its
+ *   * Neither the name of Hamburg University nor the names of its
  *     contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -40,7 +40,8 @@
 
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/robot_state.h>
-#include <moveit/trajectory_processing/iterative_time_parameterization.h>
+
+#include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 
 #include <shape_msgs/SolidPrimitive.h>
 
@@ -121,7 +122,7 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	if(!scene.getCollisionObjectMsg(container, container_name))
 		throw std::runtime_error("container object '" + container_name + "' is not specified in input planning scene");
 	if(container.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER)
-		throw std::runtime_error("PourInto expects container to be a cylinder");
+		throw std::runtime_error("PourInto expects container to contain a cylinder");
 
 	moveit_msgs::AttachedCollisionObject bottle;
 	if(!scene.getAttachedCollisionObjectMsg(bottle, bottle_name))
@@ -132,7 +133,7 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	moveit::core::RobotState state(scene.getCurrentState());
 
 	// container frame: top-center of container object
-   const Eigen::Affine3d& container_frame=
+	const Eigen::Affine3d& container_frame=
 		scene.getFrameTransform(container_name) *
 		Eigen::Translation3d(Eigen::Vector3d(0,0,container.primitives[0].dimensions[0]/2));
 
@@ -190,7 +191,7 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		state.getLinkModel(bottle.link_name),
 		waypoints,
 		true /* global reference_frame */,
-		.02 /* max step size */,
+		.03 /* max step size */,
 		2.0 /* jump threshold */,
 		[&scene](moveit::core::RobotState* rs,
 		         const moveit::core::JointModelGroup* jmg,
@@ -202,16 +203,19 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		);
 
 	auto robot_trajectory = std::make_shared<robot_trajectory::RobotTrajectory>(robot_model, group);
+	robot_trajectory::RobotTrajectory back_trajectory(robot_model, group);
+
 	for(const auto& waypoint : traj){
 		robot_trajectory->addSuffixWayPoint(waypoint, 0.0);
 	}
 
-	robot_trajectory::RobotTrajectory back_trajectory(*robot_trajectory);
-	back_trajectory.reverse();
+	for(auto waypoint = traj.rbegin(); waypoint != traj.rend(); waypoint++){
+		back_trajectory.addSuffixWayPoint(std::make_shared<robot_state::RobotState>(**waypoint), 0.0);
+	}
 
-	trajectory_processing::IterativeParabolicTimeParameterization iptp;
-	iptp.computeTimeStamps(*robot_trajectory);
-	iptp.computeTimeStamps(back_trajectory);
+	trajectory_processing::IterativeSplineParameterization isp;
+	isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
+	isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
 
 	robot_trajectory->append(back_trajectory, pour_duration.toSec());
 

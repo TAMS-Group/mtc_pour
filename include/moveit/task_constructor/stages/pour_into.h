@@ -78,6 +78,10 @@ public:
 	void setTiltAngle(double tilt_angle){
 		setProperty("tilt_angle", tilt_angle);
 	}
+
+	void setPourDuration(ros::Duration d){
+		setProperty("pour_duration", d);
+	}
 protected:
 	bool compute(const InterfaceState& state, planning_scene::PlanningScenePtr &scene,
 	             SubTrajectory &trajectory);
