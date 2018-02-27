@@ -140,11 +140,13 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	const Eigen::Affine3d& bottle_frame= scene.getFrameTransform(bottle_name);
 
 	// assume bottle tip as top-center of cylinder
-	const Eigen::Translation3d bottle_tip(Eigen::Vector3d(0, 0, bottle.object.primitives[0].dimensions[0]/2));
 
 	auto& attached_bottle_tfs= state.getAttachedBody(bottle_name)->getFixedTransforms();
-
 	assert(attached_bottle_tfs.size() > 0 && "impossible: attached body does not know transform to its link");
+
+	//const Eigen::Translation3d bottle_tip(Eigen::Vector3d(0, 0, bottle.object.primitives[0].dimensions[0]/2));
+	const Eigen::Affine3d bottle_tip(attached_bottle_tfs[0].inverse()*attached_bottle_tfs[1]);
+
 	const Eigen::Affine3d bottle_tip_in_tool_link(attached_bottle_tfs[0]*bottle_tip);
 
 	const Eigen::Affine3d bottle_tip_in_container_frame=

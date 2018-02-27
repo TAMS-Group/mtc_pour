@@ -99,8 +99,8 @@ moveit_msgs::CollisionObject getMeshObject(const std::string object_id, float x_
         // the first primitive defines the object frame and grasp pose in case of the bottle
         shape_msgs::SolidPrimitive primitive;
         primitive.type = shape_msgs::SolidPrimitive::CYLINDER;
-        primitive.dimensions.push_back(0.0);
-        primitive.dimensions.push_back(0.0);
+        primitive.dimensions.push_back(0.01);
+        primitive.dimensions.push_back(0.01);
 
         geometry_msgs::Pose primitive_pose;
         primitive_pose.orientation.w = 1.0;
@@ -138,10 +138,10 @@ void setupObjects(){
 
 #ifdef COLLISION_OBJECT_MESHES
 	objects.push_back(
-		getMeshObject("bottle", 0.0, 0.1, "package://mtc_pour/meshes/bottle_binary.stl", 0.284, 0.13)
+		getMeshObject("bottle", 0.0, 0.15, "package://mtc_pour/meshes/bottle_binary.stl", 0.284, 0.13)
 		);
 	objects.push_back(
-		getMeshObject("glass", 0.0, -0.1, "package://mtc_pour/meshes/glass_aligned-binary.stl", 0.12)
+		getMeshObject("glass", -0.1, -0.12, "package://mtc_pour/meshes/glass_aligned-binary.stl", 0.13)
 		);
 #else
 	moveit_msgs::CollisionObject o;
@@ -252,7 +252,7 @@ int main(int argc, char** argv){
 		stage->properties().configureInitFrom(Stage::PARENT);
 		stage->setNamedPose("open");
 		stage->setObject("bottle");
-		stage->setToolToGraspTF(Eigen::Translation3d(0,0,0), "s_model_tool0");
+		stage->setToolToGraspTF(Eigen::Translation3d(0.05,0,0), "s_model_tool0");
 		stage->setAngleDelta(M_PI/6);
 
 		stage->setMonitoredStage(current_state);
@@ -371,7 +371,7 @@ int main(int argc, char** argv){
 		p.pose.orientation.w= 1;
 		p.pose.position.x= -0.15;
 		p.pose.position.y=  0.35;
-		p.pose.position.z=  0.125;
+		p.pose.position.z=  0.13;
 		stage->setPose(p);
 		stage->properties().configureInitFrom(Stage::PARENT);
 
