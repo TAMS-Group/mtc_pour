@@ -45,6 +45,8 @@ void monitorSolution(const moveit_task_constructor_msgs::Solution& solution){
 	moveit::planning_interface::PlanningSceneInterface psi;
 	moveit::planning_interface::MoveGroupInterface mgi("arm");
 
+	ros::Duration(1.0).sleep();
+
 	moveit::planning_interface::MoveGroupInterface::Plan plan;
 
 	for(const moveit_task_constructor_msgs::SubTrajectory& traj : solution.sub_trajectory){
@@ -52,12 +54,14 @@ void monitorSolution(const moveit_task_constructor_msgs::Solution& solution){
 			ROS_INFO("skipping empty trajectory");
 		}
 		else {
+			ROS_INFO_STREAM("executing subtrajectory " << traj.id);
 			plan.trajectory_= traj.trajectory;
 			if(!static_cast<bool>(mgi.execute(plan))){
 				ROS_ERROR("Execution failed! Aborting!");
 				ros::Duration(5.0).sleep();
 				mgi.setNamedTarget("home");
 				mgi.move();
+				ros::shutdown();
 				return;
 			}
 		}
@@ -201,6 +205,9 @@ int main(int argc, char** argv){
 	}
 
 	auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
+	cartesian_planner->setMaxVelocityScaling(.3);
+	cartesian_planner->setMaxAccelerationScaling(.3);
+	cartesian_planner->setStepSize(.002);
 
 	t.setProperty("group", "arm");
 	t.setProperty("eef", "gripper");
@@ -326,8 +333,9 @@ int main(int argc, char** argv){
 		auto stage = std::make_unique<mtc_pour::PourInto>("pouring");
 		stage->setBottle("bottle");
 		stage->setContainer("glass");
-		stage->setPourOffset(Eigen::Vector3d(0,0.01,0.03));
+		stage->setPourOffset(Eigen::Vector3d(0,0.015,0.035));
 		stage->setTiltAngle(2.0);
+		stage->setPourDuration(ros::Duration(4.0));
 		stage->properties().configureInitFrom(Stage::PARENT);
 		t.add(std::move(stage));
 	}
@@ -415,7 +423,7 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveTo>("move home", sampling_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setGoal("home");
+		stage->setGoal("pour_default");
 		t.add(std::move(stage));
 	}
 
