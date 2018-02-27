@@ -352,12 +352,13 @@ int main(int argc, char** argv){
 
 	if(execute){
 		ROS_INFO("Going to execute first computed solution");
+		// TODO: node-internal callback on solution objects
 		solution_listener= nh.subscribe("solution", 1, &monitorSolution);
 	}
 
 	ROS_INFO_STREAM( t );
 
-	// TODO: t.validate();
+	// TODO: try { t.validate(); } catch() {}
 
 	try {
 		t.plan();
