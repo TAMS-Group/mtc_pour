@@ -25,6 +25,13 @@
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 
+#include <geometric_shapes/mesh_operations.h>
+#include <geometric_shapes/shape_operations.h>
+#include <shape_msgs/Mesh.h>
+
+
+#define COLLISION_OBJECT_MESHES
+
 using namespace moveit::task_constructor;
 
 ros::Subscriber solution_listener;
@@ -61,12 +68,78 @@ void monitorSolution(const moveit_task_constructor_msgs::Solution& solution){
 	ros::shutdown();
 }
 
+/* Collision objects */
+void importMeshFromResource(const std::string& resource, shape_msgs::Mesh& mesh_msg, float scale){
+        Eigen::Vector3d scaling(scale, scale, scale);
+        shapes::Shape* shape = shapes::createMeshFromResource(resource, scaling);
+        shapes::ShapeMsg shape_msg;
+        shapes::constructMsgFromShape(shape, shape_msg);
+        mesh_msg = boost::get<shape_msgs::Mesh>(shape_msg);
+}
 
-void spawnObjects(){
+moveit_msgs::CollisionObject getCollisionObjectMsg(const std::string object_id, const std::string frame_id, const shape_msgs::Mesh& mesh_msg, const geometry_msgs::Pose& mesh_pose, const shape_msgs::SolidPrimitive& primitive_msg, const geometry_msgs::Pose& primitive_pose){
+        // create object collision object
+        moveit_msgs::CollisionObject object;
+        object.header.frame_id = frame_id;
+        object.operation = moveit_msgs::CollisionObject::ADD;
+        object.id = object_id;
+        object.primitives.push_back(primitive_msg);
+        object.primitive_poses.push_back(primitive_pose);
+        object.meshes.push_back(mesh_msg);
+        object.mesh_poses.push_back(mesh_pose);
+        return object;
+}
+
+moveit_msgs::CollisionObject getMeshObject(const std::string object_id, float x_pos, float y_pos, const std::string mesh_res, float mesh_height, float frame_height = -1.0)
+{
+        // the first primitive defines the object frame and grasp pose in case of the bottle
+        shape_msgs::SolidPrimitive primitive;
+        primitive.type = shape_msgs::SolidPrimitive::CYLINDER;
+        primitive.dimensions.push_back(0.0);
+        primitive.dimensions.push_back(0.0);
+
+        geometry_msgs::Pose primitive_pose;
+        primitive_pose.orientation.w = 1.0;
+        primitive_pose.position.x = x_pos;
+        primitive_pose.position.y = y_pos;
+        if (frame_height == -1.0)
+                frame_height = mesh_height / 2;
+        primitive_pose.position.z = frame_height;
+
+
+
+        shape_msgs::Mesh mesh;
+        importMeshFromResource(mesh_res, mesh, 1.0);
+        geometry_msgs::Pose mesh_pose;
+        mesh_pose.orientation.w = 1.0;
+        mesh_pose.position.x = x_pos;
+        mesh_pose.position.y = y_pos;
+        mesh_pose.position.z = mesh_height;
+
+        return getCollisionObjectMsg(object_id, "table_top", mesh, mesh_pose, primitive, primitive_pose);
+}
+
+
+
+void setupObjects(){
 	moveit::planning_interface::PlanningSceneInterface psi;
 
 	std::vector<moveit_msgs::CollisionObject> objects;
 
+	auto attached_objects = psi.getAttachedObjects({"bottle"});
+	if(attached_objects.count("bottle") > 0){
+		attached_objects["bottle"].object.operation = 1; // REMOVE
+		psi.applyAttachedCollisionObject(attached_objects["bottle"]);
+	}
+
+#ifdef COLLISION_OBJECT_MESHES
+	objects.push_back(
+		getMeshObject("bottle", 0.0, 0.1, "package://mtc_pour/meshes/bottle_binary.stl", 0.284, 0.13)
+		);
+	objects.push_back(
+		getMeshObject("glass", 0.0, -0.1, "package://mtc_pour/meshes/glass_aligned-binary.stl", 0.12)
+		);
+#else
 	moveit_msgs::CollisionObject o;
 	o.id= "bottle";
 	o.header.frame_id= "table_top";
@@ -88,6 +161,8 @@ void spawnObjects(){
 	o.primitive_poses[0].position.z= 0.06;
 	o.primitives[0].dimensions[0]= 0.11;
 	objects.push_back(o);
+#endif
+
 
 	psi.applyCollisionObjects(objects);
 }
@@ -98,12 +173,12 @@ int main(int argc, char** argv){
 	ros::AsyncSpinner spinner(2);
 	spinner.start();
 
-	spawnObjects();
+	setupObjects();
 
 	// TODO: why does a restart trigger a new panel entry
 	Task t;
 
-   // TODO: id of solution in rviz panel is sometimes 0 and then changes
+	// TODO: id of solution in rviz panel is sometimes 0 and then changes
 
 	auto sampling_planner = std::make_shared<solvers::PipelinePlanner>();
 	// TODO: ignored because it is always overruled by Connect's timeout property
@@ -367,12 +442,14 @@ int main(int argc, char** argv){
 			std::cout << "waiting for <enter>" << std::endl;
 			std::cin.get();
 		}
+		else {
+			ros::waitForShutdown();
+		}
 	}
 	catch(InitStageException& e){
 		ROS_ERROR_STREAM(e);
 	}
 
-	ros::waitForShutdown();
 
 	return 0;
 }
