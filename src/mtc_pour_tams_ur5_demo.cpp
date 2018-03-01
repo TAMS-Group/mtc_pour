@@ -444,6 +444,7 @@ int main(int argc, char** argv){
 	// TODO: try { t.validate(); } catch() {}
 
 	try {
+		// TODO: optionally also plan stages if incoming states have infinite cost. This facilitates debugging
 		t.plan();
 
 		if(!execute){
