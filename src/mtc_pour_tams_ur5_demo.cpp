@@ -252,13 +252,13 @@ int main(int argc, char** argv){
 		stage->properties().configureInitFrom(Stage::PARENT);
 		stage->setNamedPose("open");
 		stage->setObject("bottle");
-		stage->setToolToGraspTF(Eigen::Translation3d(0.05,0,0), "s_model_tool0");
 		stage->setAngleDelta(M_PI/6);
 
 		stage->setMonitoredStage(current_state);
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage) );
 		wrapper->setMaxIKSolutions(8);
+		wrapper->setIKFrame(Eigen::Translation3d(0.05,0,0), "s_model_tool0");
 		// TODO adding this will initialize "target_pose" which is internal (or isn't it?)
 		//wrapper->properties().configureInitFrom(Stage::PARENT);
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
