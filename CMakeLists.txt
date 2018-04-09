@@ -5,7 +5,9 @@ add_compile_options(-std=c++14)
 
 find_package(catkin REQUIRED COMPONENTS
   moveit_task_constructor_core
+  rviz_marker_tools
   roscpp
+  moveit_ros_planning_interface
 )
 
 catkin_package(
