@@ -27,10 +27,9 @@
 
 #include <geometric_shapes/mesh_operations.h>
 #include <geometric_shapes/shape_operations.h>
+#include <geometric_shapes/shape_extents.h>
+
 #include <shape_msgs/Mesh.h>
-
-
-#define COLLISION_OBJECT_MESHES
 
 using namespace moveit::task_constructor;
 
@@ -72,101 +71,68 @@ void monitorSolution(const moveit_task_constructor_msgs::Solution& solution){
 	ros::shutdown();
 }
 
-/* Collision objects */
-void importMeshFromResource(const std::string& resource, shape_msgs::Mesh& mesh_msg, float scale){
-        Eigen::Vector3d scaling(scale, scale, scale);
-        shapes::Shape* shape = shapes::createMeshFromResource(resource, scaling);
-        shapes::ShapeMsg shape_msg;
-        shapes::constructMsgFromShape(shape, shape_msg);
-        mesh_msg = boost::get<shape_msgs::Mesh>(shape_msg);
+namespace {
+	void importMeshFromResource(shape_msgs::Mesh& mesh_msg, const std::string& resource){
+		const Eigen::Vector3d scaling(1, 1, 1);
+		shapes::Shape* shape = shapes::createMeshFromResource(resource, scaling);
+		shapes::ShapeMsg shape_msg;
+		shapes::constructMsgFromShape(shape, shape_msg);
+		mesh_msg = boost::get<shape_msgs::Mesh>(shape_msg);
+	}
+
+	void collisionObjectFromResource(moveit_msgs::CollisionObject& msg, const std::string& id, const Eigen::Vector3d& pose, const std::string& resource)
+	{
+		msg.meshes.resize(1);
+		importMeshFromResource(msg.meshes[0], resource);
+
+		msg.mesh_poses.resize(1);
+		msg.mesh_poses[0].orientation.w = 1.0;
+		msg.mesh_poses[0].position.x = pose[0];
+		msg.mesh_poses[0].position.y = pose[1];
+		msg.mesh_poses[0].position.z = pose[2];
+
+		msg.header.frame_id = "table_top";
+		msg.id = id;
+		msg.operation = moveit_msgs::CollisionObject::ADD;
+	}
+
+	double computeMeshHeight(const shape_msgs::Mesh& mesh){
+		double x,y,z;
+		geometric_shapes::getShapeExtents(mesh, x, y, z);
+		return z;
+	}
 }
-
-moveit_msgs::CollisionObject getCollisionObjectMsg(const std::string object_id, const std::string frame_id, const shape_msgs::Mesh& mesh_msg, const geometry_msgs::Pose& mesh_pose, const shape_msgs::SolidPrimitive& primitive_msg, const geometry_msgs::Pose& primitive_pose){
-        // create object collision object
-        moveit_msgs::CollisionObject object;
-        object.header.frame_id = frame_id;
-        object.operation = moveit_msgs::CollisionObject::ADD;
-        object.id = object_id;
-        object.primitives.push_back(primitive_msg);
-        object.primitive_poses.push_back(primitive_pose);
-        object.meshes.push_back(mesh_msg);
-        object.mesh_poses.push_back(mesh_pose);
-        return object;
-}
-
-moveit_msgs::CollisionObject getMeshObject(const std::string object_id, float x_pos, float y_pos, const std::string mesh_res, float mesh_height, float frame_height = -1.0)
-{
-        // the first primitive defines the object frame and grasp pose in case of the bottle
-        shape_msgs::SolidPrimitive primitive;
-        primitive.type = shape_msgs::SolidPrimitive::CYLINDER;
-        primitive.dimensions.push_back(0.01);
-        primitive.dimensions.push_back(0.01);
-
-        geometry_msgs::Pose primitive_pose;
-        primitive_pose.orientation.w = 1.0;
-        primitive_pose.position.x = x_pos;
-        primitive_pose.position.y = y_pos;
-        if (frame_height == -1.0)
-                frame_height = mesh_height / 2;
-        primitive_pose.position.z = frame_height;
-
-
-
-        shape_msgs::Mesh mesh;
-        importMeshFromResource(mesh_res, mesh, 1.0);
-        geometry_msgs::Pose mesh_pose;
-        mesh_pose.orientation.w = 1.0;
-        mesh_pose.position.x = x_pos;
-        mesh_pose.position.y = y_pos;
-        mesh_pose.position.z = mesh_height;
-
-        return getCollisionObjectMsg(object_id, "table_top", mesh, mesh_pose, primitive, primitive_pose);
-}
-
-
 
 void setupObjects(){
 	moveit::planning_interface::PlanningSceneInterface psi;
 
 	std::vector<moveit_msgs::CollisionObject> objects;
 
-	auto attached_objects = psi.getAttachedObjects({"bottle"});
-	if(attached_objects.count("bottle") > 0){
-		attached_objects["bottle"].object.operation = 1; // REMOVE
-		psi.applyAttachedCollisionObject(attached_objects["bottle"]);
+	{
+		auto attached_objects = psi.getAttachedObjects({"bottle"});
+		if(attached_objects.count("bottle") > 0){
+			attached_objects["bottle"].object.operation = moveit_msgs::CollisionObject::REMOVE;
+			psi.applyAttachedCollisionObject(attached_objects["bottle"]);
+		}
 	}
 
-#ifdef COLLISION_OBJECT_MESHES
-	objects.push_back(
-		getMeshObject("bottle", 0.0, 0.15, "package://mtc_pour/meshes/bottle_binary.stl", 0.284, 0.13)
-		);
-	objects.push_back(
-		getMeshObject("glass", -0.1, -0.12, "package://mtc_pour/meshes/glass_aligned-binary.stl", 0.13)
-		);
-#else
-	moveit_msgs::CollisionObject o;
-	o.id= "bottle";
-	o.header.frame_id= "table_top";
-	o.primitive_poses.resize(1);
-	o.primitive_poses[0].position.x= 0.0;
-	o.primitive_poses[0].position.y= 0.15;
-	o.primitive_poses[0].position.z= 0.12;
-	o.primitive_poses[0].orientation.w= 1.0;
-	o.primitives.resize(1);
-	o.primitives[0].type= shape_msgs::SolidPrimitive::CYLINDER;
-	o.primitives[0].dimensions.resize(2);
-	o.primitives[0].dimensions[0]= 0.23;
-	o.primitives[0].dimensions[1]= 0.03;
-	objects.push_back(o);
+	objects.emplace_back();
+	collisionObjectFromResource(
+		objects.back(),
+		"bottle",
+		Eigen::Vector3d(0.0, 0.15, 0.0),
+		"package://mtc_pour/meshes/bottle.stl");
+	// should be *on* the table
+	objects.back().mesh_poses[0].position.z+= computeMeshHeight(objects.back().meshes[0])/2 + .002;
 
-	o.id= "glass";
-	o.primitive_poses[0].position.x= -0.1;
-	o.primitive_poses[0].position.y= -0.12;
-	o.primitive_poses[0].position.z= 0.06;
-	o.primitives[0].dimensions[0]= 0.11;
-	objects.push_back(o);
-#endif
-
+	objects.emplace_back();
+	collisionObjectFromResource(
+		objects.back(),
+		"glass",
+		Eigen::Vector3d(-.1, -.12, 0.0),
+		"package://mtc_pour/meshes/glass.stl");
+	// should be *on* the table
+	objects.back().mesh_poses[0].position.z+= computeMeshHeight(objects.back().meshes[0])/2 + .002;
 
 	psi.applyCollisionObjects(objects);
 }
@@ -371,7 +337,7 @@ int main(int argc, char** argv){
 		p.pose.orientation.w= 1;
 		p.pose.position.x= -0.15;
 		p.pose.position.y=  0.35;
-		p.pose.position.z=  0.13;
+		p.pose.position.z=  0.15;
 		stage->setPose(p);
 		stage->properties().configureInitFrom(Stage::PARENT);
 

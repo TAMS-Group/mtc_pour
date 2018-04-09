@@ -43,36 +43,13 @@
 
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 
+#include <geometric_shapes/shape_extents.h>
+
 #include <shape_msgs/SolidPrimitive.h>
 
 #include <eigen_conversions/eigen_msg.h>
 
 #include <rviz_marker_tools/marker_creation.h>
-
-namespace mtc_pour {
-
-PourInto::PourInto(std::string name) :
-	PropagatingForward(std::move(name))
-{
-	auto& p = properties();
-	p.declare<std::string>("group", "name of planning group");
-
-	p.declare<std::string>("bottle", "attached bottle-like object");
-	p.declare<std::string>("container", "container object to be filled");
-
-	p.declare<double>("tilt_angle", "maximum tilt-angle for the bottle");
-	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
-	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
-}
-
-bool PourInto::computeForward(const InterfaceState& from) {
-	planning_scene::PlanningScenePtr to;
-	SubTrajectory trajectory;
-
-	bool success = !compute(from, to, trajectory);
-	sendForward(from, InterfaceState(to), std::move(trajectory));
-	return success;
-}
 
 namespace {
 /** Compute prototype waypoints for pouring.
@@ -101,6 +78,51 @@ void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_
 		waypoints.push_back(translation*rotation);
 	}
 }
+
+inline bool isValidObject(const moveit_msgs::CollisionObject& o){
+	return (o.meshes.size() == 1 && o.mesh_poses.size() == 1 && o.primitives.empty()) ||
+	       (o.meshes.empty() && o.primitives.size() == 1 && o.primitive_poses.size() == 1 && o.primitives[0].type == shape_msgs::SolidPrimitive::CYLINDER);
+}
+
+inline double getObjectHeight(const moveit_msgs::CollisionObject& o){
+	if( !o.meshes.empty() ){
+		double x,y,z;
+		geometric_shapes::getShapeExtents(o.meshes[0], x, y, z);
+		return z;
+	}
+	else {
+		// validations guarantees this is a cylinder
+		return o.primitives[0].dimensions[shape_msgs::SolidPrimitive::CYLINDER_HEIGHT];
+	}
+}
+
+} /* anonymous namespace */
+
+
+
+namespace mtc_pour {
+
+PourInto::PourInto(std::string name) :
+	PropagatingForward(std::move(name))
+{
+	auto& p = properties();
+	p.declare<std::string>("group", "name of planning group");
+
+	p.declare<std::string>("bottle", "attached bottle-like object");
+	p.declare<std::string>("container", "container object to be filled");
+
+	p.declare<double>("tilt_angle", "maximum tilt-angle for the bottle");
+	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
+	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
+}
+
+bool PourInto::computeForward(const InterfaceState& from) {
+	planning_scene::PlanningScenePtr to;
+	SubTrajectory trajectory;
+
+	bool success = !compute(from, to, trajectory);
+	sendForward(from, InterfaceState(to), std::move(trajectory));
+	return success;
 }
 
 bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScenePtr& result, SubTrajectory& trajectory) {
@@ -121,21 +143,22 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	moveit_msgs::CollisionObject container;
 	if(!scene.getCollisionObjectMsg(container, container_name))
 		throw std::runtime_error("container object '" + container_name + "' is not specified in input planning scene");
-	if(container.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER)
-		throw std::runtime_error("PourInto expects container to contain a cylinder");
+	if(!isValidObject(container))
+		throw std::runtime_error("PourInto: container is neither a valid cylinder nor mesh.");
 
 	moveit_msgs::AttachedCollisionObject bottle;
 	if(!scene.getAttachedCollisionObjectMsg(bottle, bottle_name))
 		throw std::runtime_error("bottle '" + bottle_name + "' is not an attached collision object in input planning scene");
-	if(bottle.object.primitives[0].type != shape_msgs::SolidPrimitive::CYLINDER)
-		throw std::runtime_error("PourInto expects bottle object to have a cylinder as bottle tip as first primitive");
+	if(!isValidObject(bottle.object))
+		throw std::runtime_error("PourInto: bottle is neither a valid cylinder nor mesh.");
 
 	moveit::core::RobotState state(scene.getCurrentState());
 
 	// container frame: top-center of container object
 	const Eigen::Affine3d& container_frame=
 		scene.getFrameTransform(container_name) *
-		Eigen::Translation3d(Eigen::Vector3d(0,0,container.primitives[0].dimensions[0]/2));
+		Eigen::Translation3d(Eigen::Vector3d(0,0, getObjectHeight(container)/2));
+	// TODO: this last part ignores the difference between "origin of container" and "center of mesh"
 
 	const Eigen::Affine3d& bottle_frame= scene.getFrameTransform(bottle_name);
 
@@ -144,8 +167,8 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	auto& attached_bottle_tfs= state.getAttachedBody(bottle_name)->getFixedTransforms();
 	assert(attached_bottle_tfs.size() > 0 && "impossible: attached body does not know transform to its link");
 
-	//const Eigen::Translation3d bottle_tip(Eigen::Vector3d(0, 0, bottle.object.primitives[0].dimensions[0]/2));
-	const Eigen::Affine3d bottle_tip(attached_bottle_tfs[0].inverse()*attached_bottle_tfs[1]);
+	const Eigen::Translation3d bottle_tip(Eigen::Vector3d(0, 0, getObjectHeight(bottle.object)/2));
+	//const Eigen::Affine3d bottle_tip(attached_bottle_tfs[0].inverse()*attached_bottle_tfs[1]);
 
 	const Eigen::Affine3d bottle_tip_in_tool_link(attached_bottle_tfs[0]*bottle_tip);
 
