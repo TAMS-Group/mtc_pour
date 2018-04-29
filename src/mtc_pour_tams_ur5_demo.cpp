@@ -147,10 +147,12 @@ int main(int argc, char** argv){
 
 	// TODO: why does a restart trigger a new panel entry
 	Task t;
+	t.loadRobotModel();
 
 	// TODO: id of solution in rviz panel is sometimes 0 and then changes
 
 	auto sampling_planner = std::make_shared<solvers::PipelinePlanner>();
+	sampling_planner->setProperty("goal_joint_tolerance", 1e-5);
 	// TODO: ignored because it is always overruled by Connect's timeout property
 	//sampling_planner->setTimeout(15.0);
 	//pipeline->setPlannerId("");
@@ -194,7 +196,7 @@ int main(int argc, char** argv){
 	}
 
 	{
-		auto stage = std::make_unique<stages::Connect>("move to pre-grasp pose", sampling_planner);
+		auto stage = std::make_unique<stages::Connect>("move to pre-grasp pose", stages::Connect::GroupPlannerVector {{"arm", sampling_planner}});
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
 	}
@@ -234,7 +236,7 @@ int main(int argc, char** argv){
 	// TODO: encapsulate these three states in stages::Grasp or similar
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
-		stage->enableCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), true);
+		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), true);
 		t.add(std::move(stage));
 	}
 
@@ -269,8 +271,8 @@ int main(int argc, char** argv){
 	}
 
 	{
-		auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", sampling_planner);
-		stage->setTimeout(ros::Duration(20.0));
+		auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+		stage->setTimeout(ros::Duration(15.0));
 		stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
@@ -309,8 +311,8 @@ int main(int argc, char** argv){
 	// PLACE
 
 	{
-		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", sampling_planner);
-		stage->setTimeout(ros::Duration(20.0));
+		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+		stage->setTimeout(ros::Duration(15.0));
 		stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
@@ -359,7 +361,7 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
-		stage->enableCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), false);
+		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), false);
 		t.add(std::move(stage));
 	}
 
