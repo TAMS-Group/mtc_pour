@@ -30,3 +30,10 @@ target_link_libraries(${PROJECT_NAME}_tams_ur5_demo
 	mtc_pour_into
 	${catkin_LIBRARIES}
 )
+
+add_executable(${PROJECT_NAME}_baxter_demo src/mtc_pour_baxter_demo.cpp)
+add_dependencies(${PROJECT_NAME}_baxter_demo ${catkin_EXPORTED_TARGETS})
+target_link_libraries(${PROJECT_NAME}_baxter_demo
+	mtc_pour_into
+	${catkin_LIBRARIES}
+)

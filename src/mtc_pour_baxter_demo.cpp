@@ -31,20 +31,27 @@ int main(int argc, char** argv){
 	spinner.start();
 
 	{
-		geometry_msgs::PoseStamped bottle, glass;
-		bottle.header.frame_id= "table_top";
-		bottle.pose.position.x= 0.0;
-		bottle.pose.position.y= 0.15;
-		bottle.pose.position.z= 0.0;
+		const double table_height= -.15;
+
+		geometry_msgs::PoseStamped bottle;
+		bottle.header.frame_id= "torso";
+		bottle.pose.position.x= 0.7;
+		bottle.pose.position.y= -0.12;
+		bottle.pose.position.z= table_height;
 		bottle.pose.orientation.w= 1.0;
 
-		glass.header.frame_id= "table_top";
-		glass.pose.position.x= -0.1;
-		glass.pose.position.y= -0.12;
-		glass.pose.position.z= 0.0;
+		geometry_msgs::PoseStamped glass;
+		glass.header.frame_id= "torso";
+		glass.pose.position.x= 0.65;
+		glass.pose.position.y= -0.30;
+		glass.pose.position.z= table_height-0.04;
 		glass.pose.orientation.w= 1.0;
 
-		setupObjects(bottle, glass);
+		// center of table surface can be the glass pose
+		geometry_msgs::PoseStamped tabletop= glass;
+
+		setupTable(tabletop);
+		setupObjects(bottle, glass, "package://mtc_pour/meshes/small_bottle.stl");
 	}
 
 	// TODO: why does a restart trigger a new panel entry
@@ -61,13 +68,14 @@ int main(int argc, char** argv){
 
 	// don't spill liquid
 	moveit_msgs::Constraints upright_constraint;
-	upright_constraint.name = "s_model_tool0:upright:20000:high";
+	upright_constraint.name = "right_gripper:upright";
 	upright_constraint.orientation_constraints.resize(1);
 	{
 		moveit_msgs::OrientationConstraint& c= upright_constraint.orientation_constraints[0];
-		c.link_name= "s_model_tool0";
-		c.header.frame_id= "table_top";
-		c.orientation.w= 1.0;
+		c.link_name= "right_gripper";
+		c.header.frame_id= "torso";
+		c.orientation.x= 0.707;
+		c.orientation.z= 0.707;
 		c.absolute_x_axis_tolerance= 0.65;
 		c.absolute_y_axis_tolerance= 0.65;
 		c.absolute_z_axis_tolerance= M_PI;
@@ -79,9 +87,9 @@ int main(int argc, char** argv){
 	cartesian_planner->setMaxAccelerationScaling(.3);
 	cartesian_planner->setStepSize(.002);
 
-	t.setProperty("group", "arm");
-	t.setProperty("eef", "gripper");
-	t.setProperty("gripper", "gripper"); // TODO: use this
+	t.setProperty("group", "right_arm");
+	t.setProperty("eef", "right_hand_eef");
+	t.setProperty("gripper", "right_hand"); // TODO: use this
 
 	Stage* current_state= nullptr;
 	{
@@ -92,13 +100,13 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::MoveTo>("open gripper", sampling_planner);
-		stage->setGroup("gripper");
+		stage->setGroup("right_hand");
 		stage->setGoal("open");
 		t.add(std::move(stage));
 	}
 
 	{
-		auto stage = std::make_unique<stages::Connect>("move to pre-grasp pose", stages::Connect::GroupPlannerVector {{"arm", sampling_planner}});
+		auto stage = std::make_unique<stages::Connect>("move to pre-grasp pose", stages::Connect::GroupPlannerVector {{"right_arm", sampling_planner}});
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
 	}
@@ -106,13 +114,14 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("approach object", cartesian_planner);
 		stage->properties().set("marker_ns", "approach"); // TODO: convenience wrapper
-		stage->properties().set("link", "s_model_tool0");
+		stage->properties().set("link", "right_gripper");
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.15, .25);
+		stage->setMinMaxDistance(.10, .20);
 
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id = "s_model_tool0";
-		vec.vector.x = 1.0;
+		vec.header.frame_id = "right_gripper";
+		//vec.vector.x = -1.0;
+		vec.vector.z = 1.0;
 		stage->along(vec);
 		t.add(std::move(stage));
 	}
@@ -120,15 +129,19 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::GenerateGraspPose>("grasp work space pose");
 		stage->properties().configureInitFrom(Stage::PARENT);
-		stage->setNamedPose("open");
+		stage->setNamedPose("open"); // TODO: optional
 		stage->setObject("bottle");
-		stage->setAngleDelta(M_PI/6);
+		stage->setAngleDelta(M_PI/16);
 
 		stage->setMonitoredStage(current_state);
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage) );
-		wrapper->setMaxIKSolutions(8);
-		wrapper->setIKFrame(Eigen::Translation3d(0.05,0,0), "s_model_tool0");
+		wrapper->setMaxIKSolutions(32);
+		wrapper->setTimeout(0.05);
+		wrapper->setIgnoreCollisions(true);
+		wrapper->setIKFrame(
+			 Eigen::Translation3d(0.02,0,-0.05)*Eigen::AngleAxisd(M_PI/2+.7, Eigen::Vector3d::UnitY()),
+			"right_gripper");
 		// TODO adding this will initialize "target_pose" which is internal (or isn't it?)
 		//wrapper->properties().configureInitFrom(Stage::PARENT);
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
@@ -138,7 +151,7 @@ int main(int argc, char** argv){
 	// TODO: encapsulate these three states in stages::Grasp or similar
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
-		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), true);
+		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("right_hand")->getLinkModelNamesWithCollisionGeometry(), true);
 		t.add(std::move(stage));
 	}
 
@@ -152,7 +165,7 @@ int main(int argc, char** argv){
 	Stage* object_grasped= nullptr;
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("attach object");
-		stage->attachObject("bottle", "s_model_tool0");
+		stage->attachObject("bottle", "right_hand");
 		object_grasped= stage.get();
 		t.add(std::move(stage));
 	}
@@ -161,21 +174,21 @@ int main(int argc, char** argv){
 		auto stage = std::make_unique<stages::MoveRelative>("lift object", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
 		stage->setMinMaxDistance(.08,.13);
-		stage->setIKFrame("s_model_tool0"); // TODO property for frame
+		stage->setIKFrame("right_hand"); // TODO property for frame
 
 		stage->properties().set("marker_ns", "lift");
 
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id= "table_top";
+		vec.header.frame_id= "world";
 		vec.vector.z= 1.0;
 		stage->along(vec);
 		t.add(std::move(stage));
 	}
 
 	{
-		auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+		auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", stages::Connect::GroupPlannerVector{{"right_arm", sampling_planner}});
 		stage->setTimeout(15.0);
-		stage->setPathConstraints(upright_constraint);
+		//stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
 	}
@@ -184,15 +197,19 @@ int main(int argc, char** argv){
 		auto stage = std::make_unique<stages::GeneratePose>("pose above glass");
 		geometry_msgs::PoseStamped p;
 		p.header.frame_id= "glass";
-		p.pose.orientation.w= 1;
-		p.pose.position.z= .3;
+		p.pose.orientation.x= 0.707;
+		p.pose.orientation.z= 0.707;
+		p.pose.position.z= .19;
 		stage->setPose(p);
 		stage->properties().configureInitFrom(Stage::PARENT);
 
 		stage->setMonitoredStage(object_grasped);
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage) );
-		wrapper->setMaxIKSolutions(8);
+		wrapper->setMaxIKSolutions(32);
+		wrapper->setIKFrame(
+			 Eigen::Translation3d(-0.00,0,-0.02)*Eigen::AngleAxisd(.7, Eigen::Vector3d::UnitY()),
+			"right_gripper");
 		// TODO adding this will initialize "target_pose" which is internal (or isn't it?)
 		//wrapper->properties().configureInitFrom(Stage::PARENT);
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
@@ -205,17 +222,17 @@ int main(int argc, char** argv){
 		stage->setContainer("glass");
 		stage->setPourOffset(Eigen::Vector3d(0,0.015,0.035));
 		stage->setTiltAngle(2.0);
-		stage->setPourDuration(ros::Duration(4.0));
+		stage->setPourDuration(ros::Duration(2.0));
 		stage->properties().configureInitFrom(Stage::PARENT);
 		t.add(std::move(stage));
 	}
 
-	// PLACE
+	//// PLACE
 
 	{
-		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", stages::Connect::GroupPlannerVector{{"right_arm", sampling_planner}});
 		stage->setTimeout(15.0);
-		stage->setPathConstraints(upright_constraint);
+		//stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
 	}
@@ -223,12 +240,12 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("put down object", cartesian_planner);
 		stage->properties().set("marker_ns", "approach_place"); // TODO: convenience wrapper
-		stage->properties().set("link", "s_model_tool0");
+		stage->properties().set("link", "right_gripper");
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
 		stage->setMinMaxDistance(.08, .13);
 
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id = "s_model_tool0";
+		vec.header.frame_id = "torso";
 		vec.vector.z = -1.0;
 		stage->along(vec);
 		t.add(std::move(stage));
@@ -237,18 +254,22 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::GeneratePose>("place pose");
 		geometry_msgs::PoseStamped p;
-		p.header.frame_id= "table_top";
-		p.pose.orientation.w= 1;
-		p.pose.position.x= -0.15;
-		p.pose.position.y=  0.35;
-		p.pose.position.z=  0.15;
+		p.header.frame_id= "table";
+		p.pose.position.x=  0.1;
+		p.pose.position.y=  0.3;
+		p.pose.position.z=  0.14;
+		p.pose.orientation.x= 0.707;
+		p.pose.orientation.z= 0.707;
 		stage->setPose(p);
 		stage->properties().configureInitFrom(Stage::PARENT);
 
 		stage->setMonitoredStage(object_grasped);
 
 		auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics", std::move(stage) );
-		wrapper->setMaxIKSolutions(8);
+		wrapper->setMaxIKSolutions(32);
+		wrapper->setIKFrame(
+			 Eigen::Translation3d(0.02,0,-0.05)*Eigen::AngleAxisd(.7, Eigen::Vector3d::UnitY()),
+			"right_gripper");
 		// TODO: optionally in object frame
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
 		t.add(std::move(wrapper));
@@ -263,13 +284,13 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
-		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), false);
+		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("right_hand")->getLinkModelNamesWithCollisionGeometry(), false);
 		t.add(std::move(stage));
 	}
 
 	{
 		auto stage = std::make_unique<stages::ModifyPlanningScene>("detach object");
-		stage->detachObject("bottle", "s_model_tool0");
+		stage->detachObject("bottle", "right_hand");
 		object_grasped= stage.get();
 		t.add(std::move(stage));
 	}
@@ -277,15 +298,15 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("retreat after place", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.12,.25);
-		stage->setIKFrame("s_model_tool0"); // TODO property for frame
+		stage->setMinMaxDistance(.15,.20);
+		stage->setIKFrame("right_gripper"); // TODO property for frame
 
 		stage->properties().set("marker_ns", "post-place");
 
 		geometry_msgs::Vector3Stamped vec;
-		vec.header.frame_id= "s_model_tool0";
-		vec.vector.x= -1.0;
-		vec.vector.z= 0.75;
+		vec.header.frame_id= "right_gripper";
+		vec.vector.x=  1.0;
+		vec.vector.z= -0.75;
 		stage->along(vec);
 		t.add(std::move(stage));
 	}
@@ -293,7 +314,7 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveTo>("move home", sampling_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setGoal("pour_default");
+		stage->setGoal("right_neutral");
 		t.add(std::move(stage));
 	}
 
@@ -307,7 +328,7 @@ int main(int argc, char** argv){
 	if(execute){
 		ROS_INFO("Going to execute first computed solution");
 		// TODO: node-internal callback on solution objects
-		efs.reset(new ExecuteFirstSolution("solution", "arm"));
+		efs.reset(new ExecuteFirstSolution("solution", "right_arm"));
 	}
 
 	ROS_INFO_STREAM( t );
