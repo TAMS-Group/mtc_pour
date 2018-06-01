@@ -58,7 +58,8 @@ namespace {
 void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_angle,
                              const Eigen::Translation3d& pouring_offset, EigenSTL::vector_Affine3d& waypoints,
                              unsigned int nr_of_waypoints= 10) {
-	Eigen::Affine3d tip_pose(start_tip_pose);
+	Eigen::Affine3d start_tip_rotation(start_tip_pose);
+	start_tip_rotation.translation().fill(0);
 
 	waypoints.push_back(start_tip_pose);
 
@@ -67,7 +68,7 @@ void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_
 		const double exp_fraction= fraction*fraction;
 
 		// linear interpolation for tilt angle
-		Eigen::AngleAxisd rotation(fraction*tilt_angle, Eigen::Vector3d::UnitX());
+		Eigen::Affine3d rotation = Eigen::AngleAxisd(fraction*tilt_angle, Eigen::Vector3d::UnitX()) * start_tip_rotation;
 
 		// exponential interpolation towards container rim + offset
 		Eigen::Translation3d translation(
