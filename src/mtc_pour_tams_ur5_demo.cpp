@@ -98,6 +98,7 @@ int main(int argc, char** argv){
 	}
 
 	{
+		// TODO: overload for single planner case
 		auto stage = std::make_unique<stages::Connect>("move to pre-grasp pose", stages::Connect::GroupPlannerVector {{"arm", sampling_planner}});
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
