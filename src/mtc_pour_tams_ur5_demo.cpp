@@ -259,7 +259,7 @@ int main(int argc, char** argv){
 		auto stage = std::make_unique<stages::MoveRelative>("lift object", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
 		stage->setMinMaxDistance(.08,.13);
-		stage->setLink("s_model_tool0"); // TODO property for frame
+		stage->setIKFrame("s_model_tool0"); // TODO property for frame
 
 		stage->properties().set("marker_ns", "lift");
 
@@ -272,7 +272,7 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::Connect>("move to pre-pour pose", stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
-		stage->setTimeout(ros::Duration(15.0));
+		stage->setTimeout(15.0);
 		stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
@@ -312,7 +312,7 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::Connect>("move to pre-place pose", stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
-		stage->setTimeout(ros::Duration(15.0));
+		stage->setTimeout(15.0);
 		stage->setPathConstraints(upright_constraint);
 		stage->properties().configureInitFrom(Stage::PARENT); // TODO: convenience-wrapper
 		t.add(std::move(stage));
@@ -375,8 +375,8 @@ int main(int argc, char** argv){
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("retreat after place", cartesian_planner);
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-		stage->setMinMaxDistance(.15,.25);
-		stage->setLink("s_model_tool0"); // TODO property for frame
+		stage->setMinMaxDistance(.12,.25);
+		stage->setIKFrame("s_model_tool0"); // TODO property for frame
 
 		stage->properties().set("marker_ns", "post-place");
 

@@ -57,7 +57,7 @@ class PourInto : public PropagatingForward {
 public:
 	PourInto(std::string name);
 
-	bool computeForward(const InterfaceState& from) override;
+	void computeForward(const InterfaceState& from) override;
 
 	void setGroup(std::string group_name){
 		setProperty("group", std::move(group_name));
@@ -83,7 +83,7 @@ public:
 		setProperty("pour_duration", d);
 	}
 protected:
-	bool compute(const InterfaceState& state, planning_scene::PlanningScenePtr &scene,
+	void compute(const InterfaceState& state, planning_scene::PlanningScenePtr &scene,
 	             SubTrajectory &trajectory);
 };
 

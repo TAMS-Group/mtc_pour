@@ -116,16 +116,16 @@ PourInto::PourInto(std::string name) :
 	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
 }
 
-bool PourInto::computeForward(const InterfaceState& from) {
+void PourInto::computeForward(const InterfaceState& from) {
 	planning_scene::PlanningScenePtr to;
 	SubTrajectory trajectory;
 
-	bool success = !compute(from, to, trajectory);
+	compute(from, to, trajectory);
 	sendForward(from, InterfaceState(to), std::move(trajectory));
-	return success;
+	return;
 }
 
-bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScenePtr& result, SubTrajectory& trajectory) {
+void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScenePtr& result, SubTrajectory& trajectory) {
 	const auto& props= properties();
 
 	const std::string& container_name= props.get<std::string>("container");
@@ -252,10 +252,10 @@ bool PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	if ( path_fraction < 1.0 - .1 ){
 		ROS_WARN_STREAM("PourInto only produced motion for " << path_fraction << " of the way. Rendering invalid");
 		trajectory.setCost(std::numeric_limits<double>::infinity());
-		return false;
+		return;
 	}
 
-	return true;
+	return;
 }
 
 }
