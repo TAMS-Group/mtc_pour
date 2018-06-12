@@ -13,60 +13,21 @@
 
 #include <shape_msgs/Mesh.h>
 
-using namespace moveit::task_constructor;
+#include <actionlib/client/simple_action_client.h>
+#include <moveit_task_constructor_msgs/ExecuteTaskSolutionAction.h>
 
-class ExecuteFirstSolution {
-public:
-	ExecuteFirstSolution(const std::string& topic, const std::string& planning_group) :
-		planning_group_(planning_group)
-	{
-		ros::NodeHandle nh("~");
 
-		listener_= nh.subscribe(topic, 1, &ExecuteFirstSolution::monitorSolution, this);
+void executeSolution(const moveit_task_constructor_msgs::Solution& msg){
+	actionlib::SimpleActionClient<moveit_task_constructor_msgs::ExecuteTaskSolutionAction> ac("execute_task_solution", true);
+	ac.waitForServer();
 
-	}
+	moveit_task_constructor_msgs::ExecuteTaskSolutionGoal goal;
+	goal.task_solution = msg;
+	ac.sendGoal(goal);
 
-	void monitorSolution(const moveit_task_constructor_msgs::Solution& solution){
-		// we are only looking for one solution
-		listener_.shutdown();
-
-		ROS_INFO("Received first solution. Executing.");
-
-		ROS_INFO("waiting for confirmation");
-		std::cin.get();
-
-		moveit::planning_interface::PlanningSceneInterface psi;
-		moveit::planning_interface::MoveGroupInterface mgi(planning_group_);
-
-		//ros::Duration(1.0).sleep();
-
-		moveit::planning_interface::MoveGroupInterface::Plan plan;
-
-		for(const moveit_task_constructor_msgs::SubTrajectory& traj : solution.sub_trajectory){
-			if( traj.trajectory.joint_trajectory.points.empty() ){
-				ROS_INFO("skipping empty trajectory");
-			}
-			else {
-				ROS_INFO_STREAM("executing subtrajectory " << traj.id);
-				plan.trajectory_= traj.trajectory;
-				if(!static_cast<bool>(mgi.execute(plan))){
-					ROS_ERROR("Execution failed! Aborting!");
-					ros::shutdown();
-					return;
-				}
-			}
-			psi.applyPlanningScene(traj.scene_diff);
-		}
-
-		ROS_INFO("Executed successfully.");
-		ros::shutdown();
-	}
-
-private:
-	ros::Subscriber listener_;
-	std::string planning_group_;
-};
-typedef std::shared_ptr<ExecuteFirstSolution> ExecuteFirstSolutionPtr;
+	ac.waitForResult();
+	ROS_INFO_STREAM("action returned: " << ac.getState().toString());
+}
 
 void collisionObjectFromResource(moveit_msgs::CollisionObject& msg, const std::string& id, const std::string& resource) {
 	msg.meshes.resize(1);

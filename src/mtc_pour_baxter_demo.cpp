@@ -324,11 +324,8 @@ int main(int argc, char** argv){
 
 	bool execute= nh.param<bool>("execute", false);
 
-	ExecuteFirstSolutionPtr efs;
 	if(execute){
 		ROS_INFO("Going to execute first computed solution");
-		// TODO: node-internal callback on solution objects
-		efs.reset(new ExecuteFirstSolution("solution", "right_arm"));
 	}
 
 	ROS_INFO_STREAM( t );
@@ -337,20 +334,21 @@ int main(int argc, char** argv){
 
 	try {
 		// TODO: optionally also plan stages if incoming states have infinite cost. This facilitates debugging
-		t.plan();
-
-		if(!execute){
-			std::cout << "waiting for <enter>" << std::endl;
-			std::cin.get();
-		}
-		else {
-			ros::waitForShutdown();
-		}
+		t.plan(1);
 	}
 	catch(InitStageException& e){
 		ROS_ERROR_STREAM(e);
 	}
 
+	if(!execute){
+		std::cout << "waiting for <enter>" << std::endl;
+		std::cin.get();
+	}
+	else {
+		moveit_task_constructor_msgs::Solution solution;
+		t.solutions().front()->fillMessage(solution);
+		executeSolution(solution);
+	}
 
 	return 0;
 }
