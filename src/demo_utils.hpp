@@ -16,6 +16,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <moveit_task_constructor_msgs/ExecuteTaskSolutionAction.h>
 
+namespace moveit::task_constructor {
 
 void executeSolution(const moveit_task_constructor_msgs::Solution& msg){
 	actionlib::SimpleActionClient<moveit_task_constructor_msgs::ExecuteTaskSolutionAction> ac("execute_task_solution", true);
@@ -48,16 +49,13 @@ void collisionObjectFromResource(moveit_msgs::CollisionObject& msg, const std::s
 	msg.operation = moveit_msgs::CollisionObject::ADD;
 }
 
-double computeMeshHeight(const shape_msgs::Mesh& mesh){
+double computeMeshHeight(const shape_msgs::Mesh& mesh) {
 	double x,y,z;
 	geometric_shapes::getShapeExtents(mesh, x, y, z);
 	return z;
 }
 
-void setupTable(
-	const geometry_msgs::PoseStamped& tabletop_pose
-)
-{
+void setupTable(const geometry_msgs::PoseStamped& tabletop_pose) {
 	moveit::planning_interface::PlanningSceneInterface psi;
 
 	// add table
@@ -126,3 +124,5 @@ void setupObjects(
 
 	psi.applyCollisionObjects(objects);
 }
+
+} // namespace moveit::task_constructor
