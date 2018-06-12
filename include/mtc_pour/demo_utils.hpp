@@ -55,37 +55,8 @@ double computeMeshHeight(const shape_msgs::Mesh& mesh) {
 	return z;
 }
 
-void setupTable(const geometry_msgs::PoseStamped& tabletop_pose) {
+void cleanup(){
 	moveit::planning_interface::PlanningSceneInterface psi;
-
-	// add table
-	moveit_msgs::CollisionObject table;
-	table.id= "table";
-	table.header= tabletop_pose.header;
-	table.operation= moveit_msgs::CollisionObject::ADD;
-	table.primitive_poses.resize(1);
-	table.primitive_poses[0]= tabletop_pose.pose;
-	table.primitive_poses[0].orientation.w= 1;
-	table.primitive_poses[0].position.z= -.15-.05;
-	table.primitives.resize(1);
-	table.primitives[0].type= shape_msgs::SolidPrimitive::BOX;
-	table.primitives[0].dimensions.resize(3);
-	table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = .5;
-	table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.0;
-	table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = .1;
-
-	psi.applyCollisionObject(table);
-}
-
-void setupObjects(
-	const geometry_msgs::PoseStamped& bottle_pose,
-	const geometry_msgs::PoseStamped& glass_pose,
-	const std::string& bottle_mesh= "package://mtc_pour/meshes/bottle.stl",
-	const std::string& glass_mesh= "package://mtc_pour/meshes/glass.stl")
-{
-	moveit::planning_interface::PlanningSceneInterface psi;
-
-	std::vector<moveit_msgs::CollisionObject> objects;
 
 	{
 		std::map<std::string, moveit_msgs::AttachedCollisionObject> attached_objects = psi.getAttachedObjects({"bottle"});
@@ -94,6 +65,52 @@ void setupObjects(
 			psi.applyAttachedCollisionObject(attached_objects["bottle"]);
 		}
 	}
+
+	{
+		std::vector<std::string> names = psi.getKnownObjectNames();
+
+		std::vector<moveit_msgs::CollisionObject> objs;
+		for(std::string& obj : std::vector<std::string> {"table", "glass", "bottle"}){
+			if(std::find(names.begin(), names.end(), obj) != names.end()){
+				objs.emplace_back();
+				objs.back().id = obj;
+				objs.back().operation = moveit_msgs::CollisionObject::REMOVE;
+			}
+		}
+
+		psi.applyCollisionObjects(objs);
+	}
+}
+
+void setupTable(std::vector<moveit_msgs::CollisionObject>& objects, const geometry_msgs::PoseStamped& tabletop_pose) {
+	// add table
+	moveit_msgs::CollisionObject table;
+	table.id= "table";
+	table.header= tabletop_pose.header;
+	table.operation= moveit_msgs::CollisionObject::ADD;
+
+	table.primitives.resize(1);
+	table.primitives[0].type= shape_msgs::SolidPrimitive::BOX;
+	table.primitives[0].dimensions.resize(3);
+	table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_X] = .5;
+	table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Y] = 1.0;
+	table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z] = .1;
+
+	table.primitive_poses.resize(1);
+	table.primitive_poses[0]= tabletop_pose.pose;
+	table.primitive_poses[0].orientation.w= 1;
+	table.primitive_poses[0].position.z-= (table.primitives[0].dimensions[shape_msgs::SolidPrimitive::BOX_Z]/2);
+
+	objects.push_back( std::move(table) );
+}
+
+void setupObjects(
+	std::vector<moveit_msgs::CollisionObject>& objects,
+	const geometry_msgs::PoseStamped& bottle_pose,
+	const geometry_msgs::PoseStamped& glass_pose,
+	const std::string& bottle_mesh= "package://mtc_pour/meshes/bottle.stl",
+	const std::string& glass_mesh= "package://mtc_pour/meshes/glass.stl")
+{
 
 	{
 		// add bottle
@@ -121,8 +138,6 @@ void setupObjects(
 		// The input pose is interpreted as a point *on* the table
 		objects.back().mesh_poses[0].position.z+= computeMeshHeight(objects.back().meshes[0])/2 + .002;
 	}
-
-	psi.applyCollisionObjects(objects);
 }
 
 } // namespace moveit::task_constructor

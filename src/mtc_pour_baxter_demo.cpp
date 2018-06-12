@@ -20,7 +20,7 @@
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 
-#include "demo_utils.hpp"
+#include "mtc_pour/demo_utils.hpp"
 
 using namespace moveit::task_constructor;
 
@@ -50,8 +50,12 @@ int main(int argc, char** argv){
 		// center of table surface can be the glass pose
 		geometry_msgs::PoseStamped tabletop= glass;
 
-		setupTable(tabletop);
-		setupObjects(bottle, glass, "package://mtc_pour/meshes/small_bottle.stl");
+		cleanup();
+		moveit::planning_interface::PlanningSceneInterface psi;
+		std::vector<moveit_msgs::CollisionObject> objs;
+		setupTable(objs, tabletop);
+		setupObjects(objs, bottle, glass, "package://mtc_pour/meshes/small_bottle.stl");
+		psi.applyCollisionObjects(objs);
 	}
 
 	// TODO: why does a restart trigger a new panel entry

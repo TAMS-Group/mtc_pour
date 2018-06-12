@@ -20,7 +20,7 @@
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 
-#include "demo_utils.hpp"
+#include "mtc_pour/demo_utils.hpp"
 
 using namespace moveit::task_constructor;
 
@@ -44,7 +44,11 @@ int main(int argc, char** argv){
 		glass.pose.position.z= 0.0;
 		glass.pose.orientation.w= 1.0;
 
-		setupObjects(bottle, glass);
+		cleanup();
+		std::vector<moveit_msgs::CollisionObject> objs;
+		moveit::planning_interface::PlanningSceneInterface psi;
+		setupObjects(objs, bottle, glass);
+		psi.applyCollisionObjects(objs);
 	}
 
 	// TODO: why does a restart trigger a new panel entry
