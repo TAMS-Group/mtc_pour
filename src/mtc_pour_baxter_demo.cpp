@@ -344,7 +344,7 @@ int main(int argc, char** argv){
 		ROS_ERROR_STREAM(e);
 	}
 
-	if(!execute){
+	if(!execute || t.numSolutions() == 0){
 		std::cout << "waiting for <enter>" << std::endl;
 		std::cin.get();
 	}
