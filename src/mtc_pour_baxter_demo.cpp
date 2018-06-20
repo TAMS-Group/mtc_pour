@@ -50,11 +50,11 @@ int main(int argc, char** argv){
 		// center of table surface can be the glass pose
 		geometry_msgs::PoseStamped tabletop= glass;
 
-		cleanup();
+		mtc_pour::cleanup();
 		moveit::planning_interface::PlanningSceneInterface psi;
 		std::vector<moveit_msgs::CollisionObject> objs;
-		setupTable(objs, tabletop);
-		setupObjects(objs, bottle, glass, "package://mtc_pour/meshes/small_bottle.stl");
+		mtc_pour::setupTable(objs, tabletop);
+		mtc_pour::setupObjects(objs, bottle, glass, "package://mtc_pour/meshes/small_bottle.stl");
 		psi.applyCollisionObjects(objs);
 	}
 
@@ -351,7 +351,7 @@ int main(int argc, char** argv){
 	else {
 		moveit_task_constructor_msgs::Solution solution;
 		t.solutions().front()->fillMessage(solution);
-		executeSolution(solution);
+		mtc_pour::executeSolution(solution);
 	}
 
 	return 0;

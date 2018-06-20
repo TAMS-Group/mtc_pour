@@ -16,7 +16,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <moveit_task_constructor_msgs/ExecuteTaskSolutionAction.h>
 
-namespace moveit::task_constructor {
+namespace mtc_pour {
 
 void executeSolution(const moveit_task_constructor_msgs::Solution& msg){
 	actionlib::SimpleActionClient<moveit_task_constructor_msgs::ExecuteTaskSolutionAction> ac("execute_task_solution", true);
@@ -140,4 +140,4 @@ void setupObjects(
 	}
 }
 
-} // namespace moveit::task_constructor
+} // namespace mtc_pour

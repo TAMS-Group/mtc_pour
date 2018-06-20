@@ -44,10 +44,10 @@ int main(int argc, char** argv){
 		glass.pose.position.z= 0.0;
 		glass.pose.orientation.w= 1.0;
 
-		cleanup();
+		mtc_pour::cleanup();
 		std::vector<moveit_msgs::CollisionObject> objs;
 		moveit::planning_interface::PlanningSceneInterface psi;
-		setupObjects(objs, bottle, glass);
+		mtc_pour::setupObjects(objs, bottle, glass);
 		psi.applyCollisionObjects(objs);
 	}
 
@@ -331,7 +331,7 @@ int main(int argc, char** argv){
 	else {
 		moveit_task_constructor_msgs::Solution solution;
 		t.solutions().front()->fillMessage(solution);
-		executeSolution(solution);
+		mtc_pour::executeSolution(solution);
 	}
 
 	return 0;
