@@ -118,14 +118,14 @@ int main(int argc, char** argv){
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id = "s_model_tool0";
 		vec.vector.x = 1.0;
-		stage->along(vec);
+		stage->setDirection(vec);
 		t.add(std::move(stage));
 	}
 
 	{
-		auto stage = std::make_unique<stages::GenerateGraspPose>("grasp work space pose");
+		auto stage = std::make_unique<stages::GenerateGraspPose>("grasp workspace pose");
 		stage->properties().configureInitFrom(Stage::PARENT);
-		stage->setNamedPose("open");
+		stage->setPreGraspPose("open");
 		stage->setObject("bottle");
 		stage->setAngleDelta(M_PI/6);
 
@@ -137,6 +137,7 @@ int main(int argc, char** argv){
 		// TODO adding this will initialize "target_pose" which is internal (or isn't it?)
 		//wrapper->properties().configureInitFrom(Stage::PARENT);
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+		wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
 		t.add(std::move(wrapper));
 	}
 
@@ -173,7 +174,7 @@ int main(int argc, char** argv){
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id= "table_top";
 		vec.vector.z= 1.0;
-		stage->along(vec);
+		stage->setDirection(vec);
 		t.add(std::move(stage));
 	}
 
@@ -201,6 +202,7 @@ int main(int argc, char** argv){
 		// TODO adding this will initialize "target_pose" which is internal (or isn't it?)
 		//wrapper->properties().configureInitFrom(Stage::PARENT);
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+		wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
 		t.add(std::move(wrapper));
 	}
 
@@ -235,7 +237,7 @@ int main(int argc, char** argv){
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id = "s_model_tool0";
 		vec.vector.z = -1.0;
-		stage->along(vec);
+		stage->setDirection(vec);
 		t.add(std::move(stage));
 	}
 
@@ -256,6 +258,7 @@ int main(int argc, char** argv){
 		wrapper->setMaxIKSolutions(8);
 		// TODO: optionally in object frame
 		wrapper->properties().configureInitFrom(Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+		wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
 		t.add(std::move(wrapper));
 	}
 
@@ -291,7 +294,7 @@ int main(int argc, char** argv){
 		vec.header.frame_id= "s_model_tool0";
 		vec.vector.x= -1.0;
 		vec.vector.z= 0.75;
-		stage->along(vec);
+		stage->setDirection(vec);
 		t.add(std::move(stage));
 	}
 
