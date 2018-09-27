@@ -117,6 +117,7 @@ PourInto::PourInto(std::string name) :
 	p.declare<double>("min_path_fraction", 0.9, "minimum valid fraction of the planned pouring path");
 	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
 	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
+	p.declare<ros::Duration>("waypoint_duration", ros::Duration(0.5), "duration between pouring waypoints");
 }
 
 void PourInto::computeForward(const InterfaceState& from) {
@@ -139,6 +140,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	const auto& min_path_fraction= props.get<double>("min_path_fraction");
 
 	const ros::Duration pour_duration( props.get<ros::Duration>("pour_duration") );
+	const ros::Duration waypoint_duration( props.get<ros::Duration>("waypoint_duration") );
 
 	const planning_scene::PlanningScene& scene= *input.scene();
 	moveit::core::RobotModelConstPtr robot_model= scene.getRobotModel();
@@ -252,10 +254,10 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	//isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
 	//}
 	for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
-		robot_trajectory->setWayPointDurationFromPrevious(i, 1.0);
+		robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
 
 	for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
-		back_trajectory.setWayPointDurationFromPrevious(i, 1.0);
+		back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
 
 	robot_trajectory->append(back_trajectory, pour_duration.toSec());
 

@@ -83,6 +83,10 @@ public:
 		setProperty("pour_duration", d);
 	}
 
+	void setWaypointDuration(ros::Duration d){
+		setProperty("waypoint_duration", d);
+	}
+
 	void setMinPathFraction(double min_path_fraction){
 		setProperty("min_path_fraction", min_path_fraction);
 	}
