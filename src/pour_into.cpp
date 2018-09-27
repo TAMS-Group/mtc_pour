@@ -42,6 +42,7 @@
 #include <moveit/robot_state/robot_state.h>
 
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
+#include <moveit/trajectory_processing/iterative_time_parameterization.h>
 
 #include <geometric_shapes/shape_extents.h>
 
@@ -239,7 +240,8 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		back_trajectory.addSuffixWayPoint(std::make_shared<robot_state::RobotState>(**waypoint), 0.0);
 	}
 
-	trajectory_processing::IterativeSplineParameterization isp;
+	//trajectory_processing::IterativeSplineParameterization isp;
+	trajectory_processing::IterativeParabolicTimeParameterization isp;
 	isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
 	isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
 
