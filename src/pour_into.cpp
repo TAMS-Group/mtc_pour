@@ -243,9 +243,19 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	}
 
 	//trajectory_processing::IterativeSplineParameterization isp;
-	trajectory_processing::IterativeParabolicTimeParameterization isp;
-	isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
-	isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
+	//{
+	//trajectory_processing::IterativeParabolicTimeParameterization isp;
+	//isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
+	//}
+	//{
+	//trajectory_processing::IterativeParabolicTimeParameterization isp;
+	//isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
+	//}
+	for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
+		robot_trajectory->setWayPointDurationFromPrevious(i, 1.0);
+
+	for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
+		back_trajectory.setWayPointDurationFromPrevious(i, 1.0);
 
 	robot_trajectory->append(back_trajectory, pour_duration.toSec());
 
