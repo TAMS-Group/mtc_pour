@@ -82,6 +82,10 @@ public:
 	void setPourDuration(ros::Duration d){
 		setProperty("pour_duration", d);
 	}
+
+	void setMinPathFraction(double min_path_fraction){
+		setProperty("min_path_fraction", min_path_fraction);
+	}
 protected:
 	void compute(const InterfaceState& state, planning_scene::PlanningScenePtr &scene,
 	             SubTrajectory &trajectory);

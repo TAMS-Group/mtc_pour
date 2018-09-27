@@ -114,6 +114,7 @@ PourInto::PourInto(std::string name) :
 	p.declare<std::string>("container", "container object to be filled");
 
 	p.declare<double>("tilt_angle", "maximum tilt-angle for the bottle");
+	p.declare<double>("min_path_fraction", 0.9, "minimum valid fraction of the planned pouring path");
 	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
 	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
 }
@@ -135,6 +136,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	const Eigen::Translation3d pour_offset( props.get<Eigen::Vector3d>("pour_offset") );
 	const auto& tilt_angle= props.get<double>("tilt_angle");
+	const auto& min_path_fraction= props.get<double>("min_path_fraction");
 
 	const ros::Duration pour_duration( props.get<ros::Duration>("pour_duration") );
 
@@ -252,7 +254,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	result= scene.diff();
 	result->setCurrentState(robot_trajectory->getLastWayPoint());
 
-	if ( path_fraction < 1.0 - .1 ){
+	if ( path_fraction < min_path_fraction ){
 		ROS_WARN_STREAM("PourInto only produced motion for " << path_fraction << " of the way. Rendering invalid");
 		trajectory.setCost(std::numeric_limits<double>::infinity());
 		return;
