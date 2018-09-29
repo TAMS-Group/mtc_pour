@@ -90,6 +90,10 @@ public:
 	void setMinPathFraction(double min_path_fraction){
 		setProperty("min_path_fraction", min_path_fraction);
 	}
+
+	void setWaypointCount(size_t cnt){
+		setProperty("waypoint_count", cnt);
+	}
 protected:
 	void compute(const InterfaceState& state, planning_scene::PlanningScenePtr &scene,
 	             SubTrajectory &trajectory);

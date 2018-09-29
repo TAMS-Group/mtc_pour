@@ -115,6 +115,7 @@ PourInto::PourInto(std::string name) :
 
 	p.declare<double>("tilt_angle", "maximum tilt-angle for the bottle");
 	p.declare<double>("min_path_fraction", 0.9, "minimum valid fraction of the planned pouring path");
+	p.declare<size_t>("waypoint_count", 10, "Number of Cartesian waypoints to approximate pouring trajectory");
 	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
 	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
 	p.declare<ros::Duration>("waypoint_duration", ros::Duration(0.5), "duration between pouring waypoints");
@@ -184,7 +185,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		bottle_tip;
 
 	EigenSTL::vector_Affine3d waypoints;
-	computePouringWaypoints(bottle_tip_in_container_frame, tilt_angle, pour_offset, waypoints);
+	computePouringWaypoints(bottle_tip_in_container_frame, tilt_angle, pour_offset, waypoints, props.get<size_t>("waypoint_count"));
 
 	// TODO: possibly also spawn alternatives:
 	//for(auto& waypoint : waypoints)
