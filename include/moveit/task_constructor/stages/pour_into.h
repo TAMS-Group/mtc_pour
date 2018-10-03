@@ -79,6 +79,10 @@ public:
 		setProperty("tilt_angle", tilt_angle);
 	}
 
+	void setPouringAxis(geometry_msgs::Vector3Stamped axis){
+		setProperty("pouring_axis", std::move(axis));
+	}
+
 	void setPourDuration(ros::Duration d){
 		setProperty("pour_duration", d);
 	}

@@ -44,6 +44,8 @@
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 
+#include <eigen_conversions/eigen_msg.h>
+
 #include <geometric_shapes/shape_extents.h>
 
 #include <shape_msgs/SolidPrimitive.h>
@@ -117,6 +119,7 @@ PourInto::PourInto(std::string name) :
 	p.declare<double>("min_path_fraction", 0.9, "minimum valid fraction of the planned pouring path");
 	p.declare<size_t>("waypoint_count", 10, "Number of Cartesian waypoints to approximate pouring trajectory");
 	p.declare<Eigen::Vector3d>("pour_offset", "offset for the bottle tip w.r.t. container top-center during pouring");
+	p.declare<geometry_msgs::Vector3Stamped>("pouring_axis", "Axis around which to pour");
 	p.declare<ros::Duration>("pour_duration", ros::Duration(1.0), "duration to stay in pouring pose");
 	p.declare<ros::Duration>("waypoint_duration", ros::Duration(0.5), "duration between pouring waypoints");
 }
@@ -168,6 +171,17 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		Eigen::Translation3d(Eigen::Vector3d(0,0, getObjectHeight(container)/2));
 	// TODO: this last part ignores the difference between "origin of container" and "center of mesh"
 
+	container_frame.linear().setIdentity();
+
+	//// TODO: spawn many axis if this is not set
+	const auto& pouring_axis= props.get<geometry_msgs::Vector3Stamped>("pouring_axis");
+	Eigen::Vector3d tilt_axis;
+	tf::vectorMsgToEigen(pouring_axis.vector, tilt_axis);
+	tilt_axis= container_frame.inverse() * scene.getFrameTransform(pouring_axis.header.frame_id) * tilt_axis;
+	// always tilt around axis in x-y plane
+	tilt_axis.z()= 0.0;
+	double tilt_axis_angle= std::atan2(tilt_axis.y(), tilt_axis.x());
+
 	const Eigen::Affine3d& bottle_frame= scene.getFrameTransform(bottle_name);
 
 	// assume bottle tip as top-center of cylinder
@@ -187,6 +201,9 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	EigenSTL::vector_Affine3d waypoints;
 	computePouringWaypoints(bottle_tip_in_container_frame, tilt_angle, pour_offset, waypoints, props.get<size_t>("waypoint_count"));
+
+	for(auto& waypoint : waypoints)
+		waypoint= Eigen::AngleAxisd(tilt_axis_angle, Eigen::Vector3d::UnitZ()) * waypoint * Eigen::AngleAxisd(-tilt_axis_angle, Eigen::Vector3d::UnitZ());
 
 	// TODO: possibly also spawn alternatives:
 	//for(auto& waypoint : waypoints)
@@ -273,6 +290,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	if ( path_fraction < min_path_fraction ){
 		ROS_WARN_STREAM("PourInto only produced motion for " << path_fraction << " of the way. Rendering invalid");
 		trajectory.setCost(std::numeric_limits<double>::infinity());
+		trajectory.setComment("pouring axis angle " + std::to_string(tilt_axis_angle));
 		return;
 	}
 
