@@ -138,6 +138,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	const Eigen::Translation3d pour_offset( props.get<Eigen::Vector3d>("pour_offset") );
 	const auto& tilt_angle= props.get<double>("tilt_angle");
+
 	const auto& min_path_fraction= props.get<double>("min_path_fraction");
 
 	const ros::Duration pour_duration( props.get<ros::Duration>("pour_duration") );
@@ -162,7 +163,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	moveit::core::RobotState state(scene.getCurrentState());
 
 	// container frame: top-center of container object
-	const Eigen::Affine3d& container_frame=
+	Eigen::Affine3d container_frame=
 		scene.getFrameTransform(container_name) *
 		Eigen::Translation3d(Eigen::Vector3d(0,0, getObjectHeight(container)/2));
 	// TODO: this last part ignores the difference between "origin of container" and "center of mesh"
