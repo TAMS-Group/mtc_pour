@@ -23,7 +23,7 @@ void executeSolution(const moveit_task_constructor_msgs::Solution& msg){
 	ac.waitForServer();
 
 	moveit_task_constructor_msgs::ExecuteTaskSolutionGoal goal;
-	goal.task_solution = msg;
+	goal.solution = msg;
 	ac.sendGoal(goal);
 
 	ac.waitForResult();
