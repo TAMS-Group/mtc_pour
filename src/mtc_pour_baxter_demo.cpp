@@ -227,6 +227,12 @@ int main(int argc, char** argv){
 		stage->setPourOffset(Eigen::Vector3d(0,0.015,0.035));
 		stage->setTiltAngle(2.0);
 		stage->setPourDuration(ros::Duration(2.0));
+		{
+			geometry_msgs::Vector3Stamped pouring_axis;
+			pouring_axis.header.frame_id= "base";
+			pouring_axis.vector.x=1.0;
+			stage->setPouringAxis(pouring_axis);
+		}
 		stage->properties().configureInitFrom(Stage::PARENT);
 		t.add(std::move(stage));
 	}
