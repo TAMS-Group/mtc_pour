@@ -58,10 +58,10 @@ namespace {
 /** Compute prototype waypoints for pouring.
   * This generates a trajectory that pours in the Y-Z axis.
   * The generated poses are for the bottle-tip and are relative to the container top-center */
-void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_angle,
-                             const Eigen::Translation3d& pouring_offset, EigenSTL::vector_Affine3d& waypoints,
+void computePouringWaypoints(const Eigen::Isometry3d& start_tip_pose, double tilt_angle,
+                             const Eigen::Translation3d& pouring_offset, EigenSTL::vector_Isometry3d& waypoints,
                              unsigned int nr_of_waypoints= 10) {
-	Eigen::Affine3d start_tip_rotation(start_tip_pose);
+	Eigen::Isometry3d start_tip_rotation(start_tip_pose);
 	start_tip_rotation.translation().fill(0);
 
 	waypoints.push_back(start_tip_pose);
@@ -71,7 +71,7 @@ void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_
 		const double exp_fraction= fraction*fraction;
 
 		// linear interpolation for tilt angle
-		Eigen::Affine3d rotation = Eigen::AngleAxisd(fraction*tilt_angle, Eigen::Vector3d::UnitX()) * start_tip_rotation;
+		Eigen::Isometry3d rotation = Eigen::AngleAxisd(fraction*tilt_angle, Eigen::Vector3d::UnitX()) * start_tip_rotation;
 
 		// exponential interpolation towards container rim + offset
 		Eigen::Translation3d translation(
@@ -166,7 +166,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	moveit::core::RobotState state(scene.getCurrentState());
 
 	// container frame: top-center of container object
-	Eigen::Affine3d container_frame=
+	Eigen::Isometry3d container_frame=
 		scene.getFrameTransform(container_name) *
 		Eigen::Translation3d(Eigen::Vector3d(0,0, getObjectHeight(container)/2));
 	// TODO: this last part ignores the difference between "origin of container" and "center of mesh"
@@ -182,7 +182,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	tilt_axis.z()= 0.0;
 	double tilt_axis_angle= std::atan2(tilt_axis.y(), tilt_axis.x());
 
-	const Eigen::Affine3d& bottle_frame= scene.getFrameTransform(bottle_name);
+	const Eigen::Isometry3d& bottle_frame= scene.getFrameTransform(bottle_name);
 
 	// assume bottle tip as top-center of cylinder
 
@@ -190,16 +190,16 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	assert(attached_bottle_tfs.size() > 0 && "impossible: attached body does not know transform to its link");
 
 	const Eigen::Translation3d bottle_tip(Eigen::Vector3d(0, 0, getObjectHeight(bottle.object)/2));
-	//const Eigen::Affine3d bottle_tip(attached_bottle_tfs[0].inverse()*attached_bottle_tfs[1]);
+	//const Eigen::Isometry3d bottle_tip(attached_bottle_tfs[0].inverse()*attached_bottle_tfs[1]);
 
-	const Eigen::Affine3d bottle_tip_in_tool_link(attached_bottle_tfs[0]*bottle_tip);
+	const Eigen::Isometry3d bottle_tip_in_tool_link(attached_bottle_tfs[0]*bottle_tip);
 
-	const Eigen::Affine3d bottle_tip_in_container_frame=
+	const Eigen::Isometry3d bottle_tip_in_container_frame=
 		container_frame.inverse() *
 		bottle_frame *
 		bottle_tip;
 
-	EigenSTL::vector_Affine3d waypoints;
+	EigenSTL::vector_Isometry3d waypoints;
 	computePouringWaypoints(bottle_tip_in_container_frame, tilt_angle, pour_offset, waypoints, props.get<size_t>("waypoint_count"));
 
 	for(auto& waypoint : waypoints)
@@ -222,7 +222,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		//visualization_msgs::Marker tip;
 		//tip.ns= "pouring waypoints";
 		//tip.header= p.header;
-		//tip.pose= rviz_marker_tools::composePoses(p.pose, Eigen::Affine3d(Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(0,1,0))));
+		//tip.pose= rviz_marker_tools::composePoses(p.pose, Eigen::Isometry3d(Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(0,1,0))));
 		//tip.color.r= .588;
 		//tip.color.g= .196;
 		//tip.color.b= .588;
