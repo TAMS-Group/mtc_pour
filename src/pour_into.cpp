@@ -265,20 +265,13 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		back_trajectory.addSuffixWayPoint(std::make_shared<robot_state::RobotState>(**waypoint), 0.0);
 	}
 
-	//trajectory_processing::IterativeSplineParameterization isp;
-	//{
-	//trajectory_processing::IterativeParabolicTimeParameterization isp;
-	//isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
-	//}
-	//{
-	//trajectory_processing::IterativeParabolicTimeParameterization isp;
-	//isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
-	//}
-	for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
-		robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
-
-	for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
-		back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
+	trajectory_processing::IterativeSplineParameterization isp;
+	isp.computeTimeStamps(*robot_trajectory);
+	isp.computeTimeStamps(back_trajectory);
+	//for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
+	//	robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
+	//for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
+	//	back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
 
 	robot_trajectory->append(back_trajectory, pour_duration.toSec());
 
