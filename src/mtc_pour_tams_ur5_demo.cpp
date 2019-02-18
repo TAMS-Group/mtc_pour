@@ -52,7 +52,7 @@ int main(int argc, char** argv){
 	}
 
 	// TODO: why does a restart trigger a new panel entry
-	Task t;
+	Task t("my_task");
 	t.loadRobotModel();
 
 	// TODO: id of solution in rviz panel is sometimes 0 and then changes
@@ -110,7 +110,7 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("approach object", cartesian_planner);
-		stage->properties().set("marker_ns", "approach"); // TODO: convenience wrapper
+		stage->setMarkerNS("approach");
 		stage->properties().set("link", "s_model_tool0");
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
 		stage->setMinMaxDistance(.15, .25);
@@ -169,7 +169,7 @@ int main(int argc, char** argv){
 		stage->setMinMaxDistance(.08,.13);
 		stage->setIKFrame("s_model_tool0"); // TODO property for frame
 
-		stage->properties().set("marker_ns", "lift");
+		stage->setMarkerNS("lift");
 
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id= "table_top";
@@ -219,7 +219,10 @@ int main(int argc, char** argv){
 			pouring_axis.vector.x=1.0;
 			stage->setPouringAxis(pouring_axis);
 		}
-		stage->properties().configureInitFrom(Stage::PARENT);
+		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+		// TODO: This would have unintuitive results:
+		//stage->properties().configureInitFrom(Stage::PARENT);
+		// because it includes "marker_ns"
 		t.add(std::move(stage));
 	}
 
@@ -235,7 +238,7 @@ int main(int argc, char** argv){
 
 	{
 		auto stage = std::make_unique<stages::MoveRelative>("put down object", cartesian_planner);
-		stage->properties().set("marker_ns", "approach_place"); // TODO: convenience wrapper
+		stage->setMarkerNS("approach-place");
 		stage->properties().set("link", "s_model_tool0");
 		stage->properties().configureInitFrom(Stage::PARENT, {"group"});
 		stage->setMinMaxDistance(.08, .13);
@@ -294,7 +297,7 @@ int main(int argc, char** argv){
 		stage->setMinMaxDistance(.12,.25);
 		stage->setIKFrame("s_model_tool0"); // TODO property for frame
 
-		stage->properties().set("marker_ns", "post-place");
+		stage->setMarkerNS("post-place");
 
 		geometry_msgs::Vector3Stamped vec;
 		vec.header.frame_id= "s_model_tool0";
@@ -327,7 +330,7 @@ int main(int argc, char** argv){
 
 	try {
 		// TODO: optionally also plan stages if incoming states have infinite cost. This facilitates debugging
-		t.plan();
+		t.plan(nh.param<int>("solutions", 1));
 	}
 	catch(InitStageException& e){
 		ROS_ERROR_STREAM(e);
@@ -340,7 +343,9 @@ int main(int argc, char** argv){
 	else {
 		moveit_task_constructor_msgs::Solution solution;
 		t.solutions().front()->fillMessage(solution);
+		std::cout << "executing solution" << std::endl;
 		mtc_pour::executeSolution(solution);
+		std::cout << "done" << std::endl;
 	}
 
 	return 0;
