@@ -217,10 +217,10 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		p.header.frame_id= scene.getPlanningFrame();
 		tf::poseEigenToMsg(waypoint, p.pose);
 
-		rviz_marker_tools::appendFrame(trajectory.markers(), p, 0.1, "tip frame");
+		rviz_marker_tools::appendFrame(trajectory.markers(), p, 0.1, markerNS());
 
 		//visualization_msgs::Marker tip;
-		//tip.ns= "pouring waypoints";
+		//tip.ns= markerNS();
 		//tip.header= p.header;
 		//tip.pose= rviz_marker_tools::composePoses(p.pose, Eigen::Affine3d(Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(0,1,0))));
 		//tip.color.r= .588;
