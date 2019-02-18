@@ -75,7 +75,7 @@ void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_
 
 		// exponential interpolation towards container rim + offset
 		Eigen::Translation3d translation(
-			start_tip_pose.translation()     * (1-exp_fraction) +
+			start_tip_pose.translation() * (1-exp_fraction) +
 			pouring_offset.translation() * exp_fraction
 			);
 
@@ -83,11 +83,14 @@ void computePouringWaypoints(const Eigen::Affine3d& start_tip_pose, double tilt_
 	}
 }
 
+// check the CollisionObject types this stage can handle
 inline bool isValidObject(const moveit_msgs::CollisionObject& o){
 	return (o.meshes.size() == 1 && o.mesh_poses.size() == 1 && o.primitives.empty()) ||
 	       (o.meshes.empty() && o.primitives.size() == 1 && o.primitive_poses.size() == 1 && o.primitives[0].type == shape_msgs::SolidPrimitive::CYLINDER);
 }
 
+/* compute height of the CollisionObject
+   This is only useful for meshes, when they are centered */
 inline double getObjectHeight(const moveit_msgs::CollisionObject& o){
 	if( !o.meshes.empty() ){
 		double x,y,z;
@@ -124,6 +127,7 @@ PourInto::PourInto(std::string name) :
 	p.declare<ros::Duration>("waypoint_duration", ros::Duration(0.5), "duration between pouring waypoints");
 }
 
+/* MTC stage interface */
 void PourInto::computeForward(const InterfaceState& from) {
 	planning_scene::PlanningScenePtr to;
 	SubTrajectory trajectory;
@@ -151,6 +155,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	moveit::core::RobotModelConstPtr robot_model= scene.getRobotModel();
 	const moveit::core::JointModelGroup* group= robot_model->getJointModelGroup(props.get<std::string>("group"));
 
+	/* validate planning environment is prepared for pouring */
 	moveit_msgs::CollisionObject container;
 	if(!scene.getCollisionObjectMsg(container, container_name))
 		throw std::runtime_error("container object '" + container_name + "' is not specified in input planning scene");
@@ -165,14 +170,15 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	moveit::core::RobotState state(scene.getCurrentState());
 
-	// container frame: top-center of container object
+	// container frame:
+	// - top-center of container object
+	// - rotation should coincide with the planning frame
 	Eigen::Affine3d container_frame=
 		scene.getFrameTransform(container_name) *
 		Eigen::Translation3d(Eigen::Vector3d(0,0, getObjectHeight(container)/2));
-	// TODO: this last part ignores the difference between "origin of container" and "center of mesh"
-
 	container_frame.linear().setIdentity();
 
+	/* compute pouring axis as one angle (tilt_axis_angle) in x-y plane */
 	//// TODO: spawn many axis if this is not set
 	const auto& pouring_axis= props.get<geometry_msgs::Vector3Stamped>("pouring_axis");
 	Eigen::Vector3d tilt_axis;
@@ -184,14 +190,12 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	const Eigen::Affine3d& bottle_frame= scene.getFrameTransform(bottle_name);
 
-	// assume bottle tip as top-center of cylinder
+	// assume bottle tip as top-center of cylinder/mesh
 
 	auto& attached_bottle_tfs= state.getAttachedBody(bottle_name)->getFixedTransforms();
 	assert(attached_bottle_tfs.size() > 0 && "impossible: attached body does not know transform to its link");
 
 	const Eigen::Translation3d bottle_tip(Eigen::Vector3d(0, 0, getObjectHeight(bottle.object)/2));
-	//const Eigen::Affine3d bottle_tip(attached_bottle_tfs[0].inverse()*attached_bottle_tfs[1]);
-
 	const Eigen::Affine3d bottle_tip_in_tool_link(attached_bottle_tfs[0]*bottle_tip);
 
 	const Eigen::Affine3d bottle_tip_in_container_frame=
@@ -199,9 +203,13 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		bottle_frame *
 		bottle_tip;
 
+   /* Cartesian waypoints for pouring motion */
 	EigenSTL::vector_Affine3d waypoints;
+
+	/* generate waypoints in y-z plane */
 	computePouringWaypoints(bottle_tip_in_container_frame, tilt_angle, pour_offset, waypoints, props.get<size_t>("waypoint_count"));
 
+	/* rotate y-z plane so tilt motion is along the specified tilt_axis */
 	for(auto& waypoint : waypoints)
 		waypoint= Eigen::AngleAxisd(tilt_axis_angle, Eigen::Vector3d::UnitZ()) * waypoint * Eigen::AngleAxisd(-tilt_axis_angle, Eigen::Vector3d::UnitZ());
 
@@ -209,6 +217,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	//for(auto& waypoint : waypoints)
 	//	waypoint= Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()) * waypoint * Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ());
 
+	/* transform waypoints to planning frame */
 	for(auto& waypoint : waypoints)
 		waypoint= container_frame*waypoint;
 
@@ -232,11 +241,14 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		//trajectory.markers().push_back(tip);
 	}
 
+	/* specify waypoints for tool link, not for bottle tip */
 	for(auto& waypoint : waypoints)
 		waypoint= waypoint*bottle_tip_in_tool_link.inverse();
 
-	std::vector<moveit::core::RobotStatePtr> traj; // TODO: multi-waypoint callback in cartesian_planner?
+	std::vector<moveit::core::RobotStatePtr> traj;
 
+	// TODO: this has to use computeCartesianPath because
+	// there is currently no multi-waypoint callback in cartesian_planner
 	double path_fraction= state.computeCartesianPath(
 		group,
 		traj,
@@ -254,6 +266,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 			}
 		);
 
+	/* build executable RobotTrajectory (downward and back up) */
 	auto robot_trajectory = std::make_shared<robot_trajectory::RobotTrajectory>(robot_model, group);
 	robot_trajectory::RobotTrajectory back_trajectory(robot_model, group);
 
@@ -265,14 +278,23 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		back_trajectory.addSuffixWayPoint(std::make_shared<robot_state::RobotState>(**waypoint), 0.0);
 	}
 
-	trajectory_processing::IterativeSplineParameterization isp;
-	isp.computeTimeStamps(*robot_trajectory);
-	isp.computeTimeStamps(back_trajectory);
-	//for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
-	//	robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
-	//for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
-	//	back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
+	/* generate time parameterization */
+	// TODO: revert code and interfaces to ISP / needs testing on hardware
+	//trajectory_processing::IterativeSplineParameterization isp;
+	//{
+	//trajectory_processing::IterativeParabolicTimeParameterization isp;
+	//isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
+	//}
+	//{
+	//trajectory_processing::IterativeParabolicTimeParameterization isp;
+	//isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
+	//}
+	for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
+		robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
+	for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
+		back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
 
+	/* combine downward and upward motion / sleep pour_duration seconds between */
 	robot_trajectory->append(back_trajectory, pour_duration.toSec());
 
 	trajectory.setTrajectory(robot_trajectory);
