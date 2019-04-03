@@ -280,19 +280,19 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	/* generate time parameterization */
 	// TODO: revert code and interfaces to ISP / needs testing on hardware
-	//trajectory_processing::IterativeSplineParameterization isp;
-	//{
-	//trajectory_processing::IterativeParabolicTimeParameterization isp;
-	//isp.computeTimeStamps(*robot_trajectory, 0.7, 0.5);
-	//}
-	//{
-	//trajectory_processing::IterativeParabolicTimeParameterization isp;
-	//isp.computeTimeStamps(back_trajectory, 0.7, 0.5);
-	//}
-	for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
+	trajectory_processing::IterativeSplineParameterization isp;
+	{
+		trajectory_processing::IterativeParabolicTimeParameterization iptp;
+		isp.computeTimeStamps(*robot_trajectory, 0.3, 0.1);
+	}
+	{
+		trajectory_processing::IterativeParabolicTimeParameterization iptp;
+		isp.computeTimeStamps(back_trajectory, 0.3, 0.1);
+	}
+	/*for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
 		robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
 	for(size_t i= 0; i < back_trajectory.getWayPointCount(); ++i)
-		back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
+		back_trajectory.setWayPointDurationFromPrevious(i, waypoint_duration.toSec());*/
 
 	/* combine downward and upward motion / sleep pour_duration seconds between */
 	robot_trajectory->append(back_trajectory, pour_duration.toSec());
