@@ -281,13 +281,15 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 	/* generate time parameterization */
 	// TODO: revert code and interfaces to ISP / needs testing on hardware
 	trajectory_processing::IterativeSplineParameterization isp;
+	const double velocity_scaling= 1.0;
+	const double acceleration_scaling= 1.0;
 	{
 		trajectory_processing::IterativeParabolicTimeParameterization iptp;
-		isp.computeTimeStamps(*robot_trajectory, 0.3, 0.1);
+		isp.computeTimeStamps(*robot_trajectory, velocity_scaling, acceleration_scaling);
 	}
 	{
 		trajectory_processing::IterativeParabolicTimeParameterization iptp;
-		isp.computeTimeStamps(back_trajectory, 0.3, 0.1);
+		isp.computeTimeStamps(back_trajectory, velocity_scaling, acceleration_scaling);
 	}
 	/*for(size_t i= 0; i < robot_trajectory->getWayPointCount(); ++i)
 		robot_trajectory->setWayPointDurationFromPrevious(i, waypoint_duration.toSec());
