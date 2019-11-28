@@ -69,6 +69,7 @@ void computePouringWaypoints(const Eigen::Isometry3d& start_tip_pose, double til
 	for(unsigned int i= 1; i <= nr_of_waypoints; ++i){
 		const double fraction= (double) i / nr_of_waypoints;
 		const double exp_fraction= fraction*fraction;
+		const double offset_fraction= std::pow(fraction, 1.0/5.0) + (-4.5*fraction*fraction + 4.5*fraction); // custom trajectory translating away from cup center
 
 		// linear interpolation for tilt angle
 		Eigen::Isometry3d rotation = Eigen::AngleAxisd(fraction*tilt_angle, Eigen::Vector3d::UnitX()) * start_tip_rotation;
@@ -78,6 +79,9 @@ void computePouringWaypoints(const Eigen::Isometry3d& start_tip_pose, double til
 			start_tip_pose.translation() * (1-exp_fraction) +
 			pouring_offset.translation() * exp_fraction
 			);
+
+		translation.y() = start_tip_pose.translation().y() * (1-offset_fraction) +
+		                  pouring_offset.translation().y() * (offset_fraction);
 
 		waypoints.push_back(translation*rotation);
 	}
