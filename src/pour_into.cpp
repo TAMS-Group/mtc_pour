@@ -207,7 +207,7 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 		bottle_frame *
 		bottle_tip;
 
-   /* Cartesian waypoints for pouring motion */
+	/* Cartesian waypoints for pouring motion */
 	EigenSTL::vector_Isometry3d waypoints;
 
 	/* generate waypoints in y-z plane */
