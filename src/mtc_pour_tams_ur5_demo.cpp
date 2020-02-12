@@ -279,7 +279,7 @@ int main(int argc, char** argv){
 	}
 
 	{
-		auto stage = std::make_unique<stages::ModifyPlanningScene>("allow gripper->object collision");
+		auto stage = std::make_unique<stages::ModifyPlanningScene>("forbid gripper->object collision");
 		stage->allowCollisions("bottle", t.getRobotModel()->getJointModelGroup("gripper")->getLinkModelNamesWithCollisionGeometry(), false);
 		t.add(std::move(stage));
 	}
