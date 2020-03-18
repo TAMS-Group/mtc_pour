@@ -40,6 +40,7 @@
 
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/robot_state.h>
+#include <moveit/robot_state/cartesian_interpolator.h>
 
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
@@ -253,22 +254,23 @@ void PourInto::compute(const InterfaceState& input, planning_scene::PlanningScen
 
 	// TODO: this has to use computeCartesianPath because
 	// there is currently no multi-waypoint callback in cartesian_planner
-	double path_fraction= state.computeCartesianPath(
-		group,
-		traj,
-		state.getLinkModel(bottle.link_name),
-		waypoints,
-		true /* global reference_frame */,
-		.03 /* max step size */,
-		2.0 /* jump threshold */,
-		[&scene](moveit::core::RobotState* rs,
-		         const moveit::core::JointModelGroup* jmg,
-		         const double* joint_positions){
-			rs->setJointGroupPositions(jmg, joint_positions);
-			rs->update();
-			return !scene.isStateColliding(*rs, jmg->getName());
-			}
-		);
+	 double path_fraction= moveit::core::CartesianInterpolator::computeCartesianPath(
+	             &state,
+	             group,
+	             traj,
+	             state.getLinkModel(bottle.link_name),
+	             waypoints,
+	             true /* global reference_frame */,
+	             moveit::core::MaxEEFStep(.03) /* max step size */,
+	             moveit::core::JumpThreshold(2.0) /* jump threshold */,
+	             [&scene](moveit::core::RobotState* rs,
+	             const moveit::core::JointModelGroup* jmg,
+	             const double* joint_positions){
+	                 rs->setJointGroupPositions(jmg, joint_positions);
+	                 rs->update();
+	                 return !scene.isStateColliding(*rs, jmg->getName());
+                }
+	         );
 
 	/* build executable RobotTrajectory (downward and back up) */
 	auto robot_trajectory = std::make_shared<robot_trajectory::RobotTrajectory>(robot_model, group);
