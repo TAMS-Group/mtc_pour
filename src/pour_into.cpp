@@ -61,14 +61,14 @@ namespace {
   * The generated poses are for the bottle-tip and are relative to the container top-center */
 void computePouringWaypoints(const Eigen::Isometry3d& start_tip_pose, double tilt_angle,
                              const Eigen::Translation3d& pouring_offset, EigenSTL::vector_Isometry3d& waypoints,
-                             unsigned int nr_of_waypoints= 10) {
+                             unsigned long nr_of_waypoints= 10) {
 	Eigen::Isometry3d start_tip_rotation(start_tip_pose);
 	start_tip_rotation.translation().fill(0);
 
 	waypoints.push_back(start_tip_pose);
 
 	for(unsigned int i= 1; i <= nr_of_waypoints; ++i){
-		const double fraction= (double) i / nr_of_waypoints;
+		const double fraction= static_cast<double>(i) / nr_of_waypoints;
 		const double exp_fraction= fraction*fraction;
 		const double offset_fraction= std::pow(fraction, 1.0/5.0) + (-4.5*fraction*fraction + 4.5*fraction); // custom trajectory translating away from cup center
 
