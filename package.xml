@@ -10,16 +10,9 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>moveit_task_constructor_core</build_depend>
-  <build_depend>rviz_marker_tools</build_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>moveit_ros_planning_interface</build_depend>
-
-  <exec_depend>moveit_task_constructor_core</exec_depend>
-  <exec_depend>rviz_marker_tools</exec_depend>
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>moveit_ros_planning_interface</exec_depend>
-
-  <export>
-  </export>
+  <depend>moveit_core</depend>
+  <depend>moveit_task_constructor_core</depend>
+  <depend>rviz_marker_tools</depend>
+  <depend>roscpp</depend>
+  <depend>moveit_ros_planning_interface</depend>
 </package>
