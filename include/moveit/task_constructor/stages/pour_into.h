@@ -50,57 +50,54 @@
 
 namespace mtc_pour {
 using namespace moveit::task_constructor;
-//TODO: should this be factorized in containers + MoveTo with multi-points?
+// TODO: should this be factorized in containers + MoveTo with multi-points?
 
 /** Perform a Pouring Motion for attached "bottle" into a "container" */
 class PourInto : public PropagatingForward {
 public:
-	PourInto(std::string name);
+  PourInto(std::string name);
 
-	void computeForward(const InterfaceState& from) override;
+  void computeForward(const InterfaceState &from) override;
 
-	void setGroup(std::string group_name){
-		setProperty("group", std::move(group_name));
-	}
+  void setGroup(std::string group_name) {
+    setProperty("group", std::move(group_name));
+  }
 
-	void setBottle(std::string bottle_name){
-		setProperty("bottle", std::move(bottle_name));
-	}
+  void setBottle(std::string bottle_name) {
+    setProperty("bottle", std::move(bottle_name));
+  }
 
-	void setContainer(std::string container){
-		setProperty("container", std::move(container));
-	}
+  void setContainer(std::string container) {
+    setProperty("container", std::move(container));
+  }
 
-	void setPourOffset(Eigen::Vector3d offset){
-		setProperty("pour_offset", std::move(offset));
-	}
+  void setPourOffset(Eigen::Vector3d offset) {
+    setProperty("pour_offset", std::move(offset));
+  }
 
-	void setTiltAngle(double tilt_angle){
-		setProperty("tilt_angle", tilt_angle);
-	}
+  void setTiltAngle(double tilt_angle) {
+    setProperty("tilt_angle", tilt_angle);
+  }
 
-	void setPouringAxis(geometry_msgs::Vector3Stamped axis){
-		setProperty("pouring_axis", std::move(axis));
-	}
+  void setPouringAxis(geometry_msgs::Vector3Stamped axis) {
+    setProperty("pouring_axis", std::move(axis));
+  }
 
-	void setPourDuration(ros::Duration d){
-		setProperty("pour_duration", d);
-	}
+  void setPourDuration(ros::Duration d) { setProperty("pour_duration", d); }
 
-	void setWaypointDuration(ros::Duration d){
-		setProperty("waypoint_duration", d);
-	}
+  void setWaypointDuration(ros::Duration d) {
+    setProperty("waypoint_duration", d);
+  }
 
-	void setMinPathFraction(double min_path_fraction){
-		setProperty("min_path_fraction", min_path_fraction);
-	}
+  void setMinPathFraction(double min_path_fraction) {
+    setProperty("min_path_fraction", min_path_fraction);
+  }
 
-	void setWaypointCount(size_t cnt){
-		setProperty("waypoint_count", cnt);
-	}
+  void setWaypointCount(size_t cnt) { setProperty("waypoint_count", cnt); }
+
 protected:
-	void compute(const InterfaceState& state, planning_scene::PlanningScenePtr &scene,
-	             SubTrajectory &trajectory);
+  void compute(const InterfaceState &state,
+               planning_scene::PlanningScenePtr &scene,
+               SubTrajectory &trajectory);
 };
-
 }

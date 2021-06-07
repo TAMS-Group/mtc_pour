@@ -12,8 +12,14 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 catkin_package(
-	INCLUDE_DIRS include
-	LIBRARIES mtc_pour_into
+   INCLUDE_DIRS include
+   LIBRARIES mtc_pour_into
+   CATKIN_DEPENDS
+      roscpp
+      rviz_marker_tools
+      moveit_core
+      moveit_ros_planning_interface
+      moveit_task_constructor_core
 )
 
 include_directories(
