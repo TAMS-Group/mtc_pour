@@ -96,7 +96,7 @@ public:
   void setWaypointCount(size_t cnt) { setProperty("waypoint_count", cnt); }
 
 protected:
-  void compute(const InterfaceState &state,
+  void computeInternal(const InterfaceState &state,
                planning_scene::PlanningScenePtr &scene,
                SubTrajectory &trajectory);
 };

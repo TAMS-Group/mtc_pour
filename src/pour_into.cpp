@@ -151,12 +151,12 @@ void PourInto::computeForward(const InterfaceState &from) {
   planning_scene::PlanningScenePtr to;
   SubTrajectory trajectory;
 
-  compute(from, to, trajectory);
+  computeInternal(from, to, trajectory);
   sendForward(from, InterfaceState(to), std::move(trajectory));
   return;
 }
 
-void PourInto::compute(const InterfaceState &input,
+void PourInto::computeInternal(const InterfaceState &input,
                        planning_scene::PlanningScenePtr &result,
                        SubTrajectory &trajectory) {
   const auto &props = properties();
