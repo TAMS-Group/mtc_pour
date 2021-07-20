@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
 
   // don't spill liquid
   moveit_msgs::Constraints upright_constraint;
-  upright_constraint.name = "s_model_tool0:upright:20000:high";
+  upright_constraint.name = "s_model_tool0:upright";
   upright_constraint.orientation_constraints.resize(1);
   {
     moveit_msgs::OrientationConstraint &c =

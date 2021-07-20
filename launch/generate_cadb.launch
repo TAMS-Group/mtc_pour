@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find moveit_planners_ompl)/ompl_interface/launch/generate_state_database.launch">
+    <arg name="planning_group" value="arm"/>
+    <arg name="constraints_file" value="$(find mtc_pour)/config/upright_constraint.yaml"/>
+  </include>
+</launch>
