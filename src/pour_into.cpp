@@ -37,10 +37,11 @@
 */
 
 #include <moveit/task_constructor/stages/pour_into.h>
+#include <moveit/task_constructor/moveit_compat.h>
 
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/robot_state.h>
-#if MOVEIT_CARTESIAN_INTERPOLATOR
+#if MOVEIT_HAS_CARTESIAN_INTERPOLATOR
 #include <moveit/robot_state/cartesian_interpolator.h>
 #endif
 
@@ -223,7 +224,11 @@ void PourInto::computeInternal(const InterfaceState &input,
   // assume bottle tip as top-center of cylinder/mesh
 
   auto &attached_bottle_tfs =
+#if MOVEIT_HAS_OBJECT_POSE
+      state.getAttachedBody(bottle_name)->getShapePosesInLinkFrame();
+#else
       state.getAttachedBody(bottle_name)->getFixedTransforms();
+#endif
   assert(attached_bottle_tfs.size() > 0 &&
          "impossible: attached body does not know transform to its link");
 
@@ -288,7 +293,7 @@ void PourInto::computeInternal(const InterfaceState &input,
 
 // TODO: this has to use computeCartesianPath because
 // there is currently no multi-waypoint callback in cartesian_planner
-#if MOVEIT_CARTESIAN_INTERPOLATOR
+#if MOVEIT_HAS_CARTESIAN_INTERPOLATOR
   double path_fraction =
       moveit::core::CartesianInterpolator::computeCartesianPath(
           &state, group, traj, state.getLinkModel(bottle.link_name), waypoints,

@@ -27,18 +27,9 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-include(CheckIncludeFileCXX)
-set(CMAKE_REQUIRED_INCLUDES ${moveit_core_INCLUDE_DIRS})
-set(CMAKE_REQUIRED_FLAGS "-std=c++11")
-check_include_file_cxx(moveit/robot_state/cartesian_interpolator.h MOVEIT_CARTESIAN_INTERPOLATOR)
-if(NOT MOVEIT_CARTESIAN_INTERPOLATOR)
-    set(MOVEIT_CARTESIAN_INTERPOLATOR 0)
-endif()
-
 add_library(mtc_pour_into src/pour_into.cpp)
 add_dependencies(mtc_pour_into ${catkin_EXPORTED_TARGETS})
 target_link_libraries(mtc_pour_into ${catkin_LIBRARIES})
-target_compile_definitions(mtc_pour_into PRIVATE -DMOVEIT_CARTESIAN_INTERPOLATOR=${MOVEIT_CARTESIAN_INTERPOLATOR})
 
 add_executable(${PROJECT_NAME}_tams_ur5_demo src/mtc_pour_tams_ur5_demo.cpp)
 add_dependencies(${PROJECT_NAME}_tams_ur5_demo ${catkin_EXPORTED_TARGETS})
