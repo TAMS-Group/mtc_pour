@@ -54,7 +54,7 @@
 
 #include <shape_msgs/SolidPrimitive.h>
 
-#include <eigen_conversions/eigen_msg.h>
+#include <tf2_eigen/tf2_eigen.h>
 
 #include <rviz_marker_tools/marker_creation.h>
 
@@ -212,7 +212,7 @@ void PourInto::computeInternal(const InterfaceState &input,
   const auto &pouring_axis =
       props.get<geometry_msgs::Vector3Stamped>("pouring_axis");
   Eigen::Vector3d tilt_axis;
-  tf::vectorMsgToEigen(pouring_axis.vector, tilt_axis);
+  tf2::fromMsg(pouring_axis.vector, tilt_axis);
   tilt_axis = container_frame.inverse() *
               scene.getFrameTransform(pouring_axis.header.frame_id) * tilt_axis;
   // always tilt around axis in x-y plane
@@ -256,7 +256,7 @@ void PourInto::computeInternal(const InterfaceState &input,
 
   // TODO: possibly also spawn alternatives:
   // for(auto& waypoint : waypoints)
-  //	waypoint= Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()) * waypoint *
+  //   waypoint= Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ()) * waypoint *
   //Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitZ());
 
   /* transform waypoints to planning frame */
@@ -266,7 +266,7 @@ void PourInto::computeInternal(const InterfaceState &input,
   for (auto waypoint : waypoints) {
     geometry_msgs::PoseStamped p;
     p.header.frame_id = scene.getPlanningFrame();
-    tf::poseEigenToMsg(waypoint, p.pose);
+    p.pose = tf2::toMsg(waypoint);
 
     rviz_marker_tools::appendFrame(trajectory.markers(), p, 0.1, markerNS());
 

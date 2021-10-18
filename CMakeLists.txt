@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
   moveit_ros_planning_interface
   moveit_task_constructor_core
+  tf2_eigen
 )
 
 catkin_package(
