@@ -41,9 +41,7 @@
 
 #include <moveit/planning_scene/planning_scene.h>
 #include <moveit/robot_state/robot_state.h>
-#if MOVEIT_HAS_CARTESIAN_INTERPOLATOR
 #include <moveit/robot_state/cartesian_interpolator.h>
-#endif
 
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
@@ -224,11 +222,7 @@ void PourInto::computeInternal(const InterfaceState &input,
   // assume bottle tip as top-center of cylinder/mesh
 
   auto &attached_bottle_tfs =
-#if MOVEIT_HAS_OBJECT_POSE
       state.getAttachedBody(bottle_name)->getShapePosesInLinkFrame();
-#else
-      state.getAttachedBody(bottle_name)->getFixedTransforms();
-#endif
   assert(attached_bottle_tfs.size() > 0 &&
          "impossible: attached body does not know transform to its link");
 
@@ -293,7 +287,6 @@ void PourInto::computeInternal(const InterfaceState &input,
 
 // TODO: this has to use computeCartesianPath because
 // there is currently no multi-waypoint callback in cartesian_planner
-#if MOVEIT_HAS_CARTESIAN_INTERPOLATOR
   double path_fraction =
       moveit::core::CartesianInterpolator::computeCartesianPath(
           &state, group, traj, state.getLinkModel(bottle.link_name), waypoints,
@@ -307,19 +300,6 @@ void PourInto::computeInternal(const InterfaceState &input,
             rs->update();
             return !scene.isStateColliding(*rs, jmg->getName());
           });
-#else
-  double path_fraction = state.computeCartesianPath(
-      group, traj, state.getLinkModel(bottle.link_name), waypoints,
-      true /* global reference_frame */, .03 /* max step size */,
-      2.0 /* jump threshold */,
-      [&scene](moveit::core::RobotState *rs,
-               const moveit::core::JointModelGroup *jmg,
-               const double *joint_positions) {
-        rs->setJointGroupPositions(jmg, joint_positions);
-        rs->update();
-        return !scene.isStateColliding(*rs, jmg->getName());
-      });
-#endif
 
   /* build executable RobotTrajectory (downward and back up) */
   auto robot_trajectory =
