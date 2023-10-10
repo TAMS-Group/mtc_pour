@@ -77,8 +77,8 @@ int main(int argc, char **argv) {
   }
 
   auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
-  cartesian_planner->setMaxVelocityScaling(.3);
-  cartesian_planner->setMaxAccelerationScaling(.3);
+  cartesian_planner->setMaxVelocityScalingFactor(.3);
+  cartesian_planner->setMaxAccelerationScalingFactor(.3);
   cartesian_planner->setStepSize(.002);
 
   t.setProperty("group", "arm");
@@ -378,7 +378,7 @@ int main(int argc, char **argv) {
     std::cin.get();
   } else {
     moveit_task_constructor_msgs::Solution solution;
-    t.solutions().front()->fillMessage(solution);
+    t.solutions().front()->toMsg(solution);
     std::cout << "executing solution" << std::endl;
     mtc_pour::executeSolution(solution);
     std::cout << "done" << std::endl;
