@@ -1,7 +1,10 @@
 <?xml version="1.0"?>
 <launch>
+<arg name="use_rviz" default="true" />
+
 <include file="$(find tams_ur5_setup_moveit_config)/launch/demo.launch">
 	<arg name="ur5_joint_ranges_config" value="$(find tams_ur5_description)/config/joint_ranges/elbow_up.yaml"/>
+	<arg name="use_rviz" value="$(arg use_rviz)" />
 </include>
 <param name="move_group/constraint_approximations_path" value="$(find mtc_pour)/cadb"/>
 </launch>

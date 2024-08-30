@@ -1,7 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-  <include file="$(find moveit_planners_ompl)/ompl_interface/launch/generate_state_database.launch">
+  <include file="$(dirname)/tams_ur5_demo_prerequisites.launch">
+    <arg name="use_rviz" value="false"/>
+  </include>
+  <include file="$(find moveit_planners_ompl)/launch/generate_state_database.launch">
     <arg name="planning_group" value="arm"/>
     <arg name="constraints_file" value="$(find mtc_pour)/config/upright_constraint.yaml"/>
   </include>
+  <param name="generate_state_database/state_cnt" value="3000"/>
 </launch>
