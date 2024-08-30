@@ -28,9 +28,10 @@ int main(int argc, char **argv) {
   ros::init(argc, argv, "mtc_pouring");
 
   ros::AsyncSpinner spinner(2);
+  ros::NodeHandle pnh("~");
   spinner.start();
 
-  {
+  if(pnh.param<bool>("spawn_objects", true)) {
     geometry_msgs::PoseStamped bottle, glass;
     bottle.header.frame_id = "table_top";
     bottle.pose.position.x = 0.0;
@@ -117,7 +118,7 @@ int main(int argc, char **argv) {
     stage->setMarkerNS("approach");
     stage->properties().set("link", "s_model_tool0");
     stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-    stage->setMinMaxDistance(.15, .25);
+    stage->setMinMaxDistance(.05, .15);
 
     geometry_msgs::Vector3Stamped vec;
     vec.header.frame_id = "s_model_tool0";
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
     stage->properties().configureInitFrom(Stage::PARENT);
     stage->setPreGraspPose("open");
     stage->setObject("bottle");
-    stage->setAngleDelta(M_PI / 6);
+    stage->setAngleDelta(M_PI / 12);
 
     stage->setMonitoredStage(current_state);
 
@@ -198,7 +199,7 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-pour pose",
         stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
-    stage->setTimeout(15.0);
+    stage->setTimeout(3.0);
     stage->setPathConstraints(upright_constraint);
     stage->properties().configureInitFrom(
         Stage::PARENT); // TODO: convenience-wrapper
@@ -254,7 +255,7 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-place pose",
         stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
-    stage->setTimeout(15.0);
+    stage->setTimeout(3.0);
     stage->setPathConstraints(upright_constraint);
     stage->properties().configureInitFrom(
         Stage::PARENT); // TODO: convenience-wrapper
