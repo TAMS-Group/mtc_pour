@@ -290,7 +290,7 @@ void PourInto::computeInternal(const InterfaceState &input,
           &state, group, traj, state.getLinkModel(bottle.link_name), waypoints,
           true /* global reference_frame */,
           moveit::core::MaxEEFStep(.03) /* max step size */,
-          moveit::core::JumpThreshold(2.0) /* jump threshold */,
+          moveit::core::CartesianPrecision(),
           [&scene](moveit::core::RobotState *rs,
                    const moveit::core::JointModelGroup *jmg,
                    const double *joint_positions) {
