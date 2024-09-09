@@ -46,8 +46,6 @@
 #include <moveit/trajectory_processing/iterative_spline_parameterization.h>
 #include <moveit/trajectory_processing/iterative_time_parameterization.h>
 
-#include <eigen_conversions/eigen_msg.h>
-
 #include <geometric_shapes/shape_extents.h>
 
 #include <shape_msgs/SolidPrimitive.h>
