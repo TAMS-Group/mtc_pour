@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(mtc_pour)
 
-add_compile_options(-std=c++14)
-
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rviz_marker_tools
