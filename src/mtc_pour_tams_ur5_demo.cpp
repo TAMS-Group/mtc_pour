@@ -19,6 +19,7 @@
 
 #include <moveit/task_constructor/solvers/cartesian_path.h>
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
+#include <moveit/task_constructor/solvers/joint_interpolation.h>
 
 #include "mtc_pour/demo_utils.hpp"
 
@@ -57,9 +58,14 @@ int main(int argc, char **argv) {
 
   auto sampling_planner = std::make_shared<solvers::PipelinePlanner>();
   sampling_planner->setProperty("goal_joint_tolerance", 1e-5);
+
+  auto joint_interpolation = std::make_shared<solvers::JointInterpolationPlanner>();
+
   // TODO: ignored because it is always overruled by Connect's timeout property
   // sampling_planner->setTimeout(15.0);
   // pipeline->setPlannerId("");
+  // std::chrono::duration<double> connect_timeout(1.0);
+  double connect_timeout(1.0);
 
   // don't spill liquid
   moveit_msgs::Constraints upright_constraint;
@@ -76,6 +82,8 @@ int main(int argc, char **argv) {
     c.absolute_z_axis_tolerance = M_PI;
     c.weight = 1.0;
   }
+  bool with_path_constraint = pnh.param<bool>("with_path_constraint", true);
+  ROS_INFO(with_path_constraint ? "Using upright constraint" : "Ignoring upright constraint");
 
   auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
   cartesian_planner->setMaxVelocityScalingFactor(.3);
@@ -96,7 +104,7 @@ int main(int argc, char **argv) {
 
   {
     auto stage =
-        std::make_unique<stages::MoveTo>("open gripper", sampling_planner);
+        std::make_unique<stages::MoveTo>("open gripper", joint_interpolation);
     stage->setGroup("gripper");
     stage->setGoal("open");
     t.add(std::move(stage));
@@ -141,6 +149,7 @@ int main(int argc, char **argv) {
         std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage));
     wrapper->setMaxIKSolutions(8);
     wrapper->setIKFrame(Eigen::Translation3d(0.05, 0, 0), "s_model_tool0");
+    wrapper->setTimeout(0.5);
     // TODO adding this will initialize "target_pose" which is internal (or
     // isn't it?)
     // wrapper->properties().configureInitFrom(Stage::PARENT);
@@ -150,7 +159,6 @@ int main(int argc, char **argv) {
     t.add(std::move(wrapper));
   }
 
-  // TODO: encapsulate these three states in stages::Grasp or similar
   {
     auto stage = std::make_unique<stages::ModifyPlanningScene>(
         "allow gripper->object collision");
@@ -164,7 +172,7 @@ int main(int argc, char **argv) {
 
   {
     auto stage =
-        std::make_unique<stages::MoveTo>("close gripper", sampling_planner);
+        std::make_unique<stages::MoveTo>("close gripper", joint_interpolation);
     stage->properties().property("group").configureInitFrom(
         Stage::PARENT, "gripper"); // TODO this is not convenient
     stage->setGoal("closed");
@@ -179,6 +187,7 @@ int main(int argc, char **argv) {
     t.add(std::move(stage));
   }
 
+  Stage *object_lifted = nullptr;
   {
     auto stage = std::make_unique<stages::MoveRelative>("lift object",
                                                         cartesian_planner);
@@ -192,6 +201,7 @@ int main(int argc, char **argv) {
     vec.header.frame_id = "table_top";
     vec.vector.z = 1.0;
     stage->setDirection(vec);
+    object_lifted = stage.get();
     t.add(std::move(stage));
   }
 
@@ -199,8 +209,9 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-pour pose",
         stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
-    stage->setTimeout(3.0);
-    stage->setPathConstraints(upright_constraint);
+    stage->setTimeout(connect_timeout);
+    if(with_path_constraint)
+      stage->setPathConstraints(upright_constraint);
     stage->properties().configureInitFrom(
         Stage::PARENT); // TODO: convenience-wrapper
     t.add(std::move(stage));
@@ -220,6 +231,7 @@ int main(int argc, char **argv) {
     auto wrapper =
         std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage));
     wrapper->setMaxIKSolutions(8);
+    wrapper->setTimeout(0.5);
     // TODO adding this will initialize "target_pose" which is internal (or
     // isn't it?)
     // wrapper->properties().configureInitFrom(Stage::PARENT);
@@ -229,6 +241,7 @@ int main(int argc, char **argv) {
     t.add(std::move(wrapper));
   }
 
+  Stage* pouring = nullptr;
   {
     auto stage = std::make_unique<mtc_pour::PourInto>("pouring");
     stage->setBottle("bottle");
@@ -246,6 +259,7 @@ int main(int argc, char **argv) {
     // TODO: This would have unintuitive results:
     // stage->properties().configureInitFrom(Stage::PARENT);
     // because it includes "marker_ns"
+    pouring = stage.get();
     t.add(std::move(stage));
   }
 
@@ -255,8 +269,9 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-place pose",
         stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
-    stage->setTimeout(3.0);
-    stage->setPathConstraints(upright_constraint);
+    stage->setTimeout(connect_timeout);
+    if(with_path_constraint)
+      stage->setPathConstraints(upright_constraint);
     stage->properties().configureInitFrom(
         Stage::PARENT); // TODO: convenience-wrapper
     t.add(std::move(stage));
@@ -293,6 +308,7 @@ int main(int argc, char **argv) {
     auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics",
                                                        std::move(stage));
     wrapper->setMaxIKSolutions(8);
+    wrapper->setTimeout(0.5);
     // TODO: optionally in object frame
     wrapper->properties().configureInitFrom(
         Stage::PARENT, {"eef"}); // TODO: convenience wrapper
@@ -302,7 +318,7 @@ int main(int argc, char **argv) {
 
   {
     auto stage =
-        std::make_unique<stages::MoveTo>("release object", sampling_planner);
+        std::make_unique<stages::MoveTo>("release object", joint_interpolation);
     stage->properties().property("group").configureInitFrom(
         Stage::PARENT, "gripper"); // TODO this is not convenient
     stage->setGoal("open");
@@ -354,12 +370,10 @@ int main(int argc, char **argv) {
 
   t.enableIntrospection();
 
-  ros::NodeHandle nh("~");
-
-  bool execute = nh.param<bool>("execute", false);
+  bool execute = pnh.param<bool>("execute", false);
 
   if (execute) {
-    ROS_INFO("Going to execute first computed solution");
+    ROS_INFO("Going to execute best solution");
   }
 
   ROS_INFO_STREAM(t);
@@ -367,21 +381,34 @@ int main(int argc, char **argv) {
   // TODO: try { t.validate(); } catch() {}
 
   try {
-    t.plan(nh.param<int>("solutions", 1));
+    auto start_time { ros::WallTime::now() };
+    t.plan(pnh.param<int>("solutions", 1));
+    ROS_WARN_STREAM("Planning took "
+	 << (ros::WallTime::now() - start_time).toSec() * 1000.0
+	 << "ms to find "
+	 << t.numSolutions() << " solution(s) with best solution "
+	 << t.solutions().front()->cost()
+	 );
+
   } catch (InitStageException &e) {
     ROS_ERROR_STREAM(e);
   }
 
-  if (!execute || t.numSolutions() == 0) {
-    std::cout << "waiting for <enter>" << std::endl;
-    std::cin.get();
-  } else {
+  if (t.numSolutions() == 0) {
+    ROS_ERROR("No solution found.");
+  } else if(execute) {
     moveit_task_constructor_msgs::Solution solution;
     t.solutions().front()->toMsg(solution);
     std::cout << "executing solution" << std::endl;
     mtc_pour::executeSolution(solution);
     std::cout << "done" << std::endl;
   }
+
+	// If wanted, keep introspection alive
+	if (pnh.param("keep_running", true)){
+		t.introspection();
+		ros::waitForShutdown();
+	}
 
   return 0;
 }
