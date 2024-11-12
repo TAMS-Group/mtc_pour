@@ -66,8 +66,8 @@ int main(int argc, char **argv) {
   // TODO: ignored because it is always overruled by Connect's timeout property
   // sampling_planner->setTimeout(15.0);
   // pipeline->setPlannerId("");
-  // std::chrono::duration<double> connect_timeout(1.0);
-  double connect_timeout(1.0);
+
+  std::chrono::duration<double> connect_timeout(1.0);
 
   // don't spill liquid
   moveit_msgs::Constraints upright_constraint;
