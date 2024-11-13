@@ -376,7 +376,8 @@ int main(int argc, char **argv) {
     t.add(std::move(stage));
   }
 
-  t.enableIntrospection();
+  if(!pnh.param<bool>("introspection", true))
+    t.enableIntrospection(false);
 
   bool execute = pnh.param<bool>("execute", false);
 
