@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <signal.h>
 
 #include <moveit/robot_model/robot_model.h> // TODO shouldn't be necessary...
 
@@ -26,6 +27,13 @@
 #include "mtc_pour/demo_utils.hpp"
 
 using namespace moveit::task_constructor;
+
+static Task* active_task{ nullptr };
+void sig_handler(int s){
+  if(active_task)
+    active_task->preempt();
+  ros::requestShutdown();
+}
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mtc_pouring");
@@ -417,6 +425,9 @@ int main(int argc, char **argv) {
 
   // TODO: try { t.validate(); } catch() {}
 
+  active_task = &t;
+  signal(SIGINT, sig_handler);
+
   try {
     auto start_time { ros::WallTime::now() };
     t.plan(pnh.param<int>("solutions", 1));
@@ -426,7 +437,7 @@ int main(int argc, char **argv) {
 	 << t.numSolutions() << " solution(s) with best solution "
 	 << t.solutions().front()->cost()
 	 );
-
+   active_task = nullptr;
   } catch (InitStageException &e) {
     ROS_ERROR_STREAM(e);
   }
