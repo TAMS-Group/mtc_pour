@@ -58,10 +58,35 @@ int main(int argc, char **argv) {
   Task t("my_task");
   t.loadRobotModel();
 
-  auto sampling_planner = std::make_shared<solvers::PipelinePlanner>();
-  sampling_planner->setProperty("goal_joint_tolerance", 1e-5);
+  int workers = pnh.param<int>("workers", -1);
+  if (workers >= 0){
+    ROS_INFO_STREAM("Setting " << workers << " worker threads");
+    t.setParallelExecutor(workers);
+  }
+  else {
+    ROS_INFO("Using direct executor");
+    t.setDirectExecutor();
+    workers= 1;
+  }
+
+  int connect_compute_attempts = pnh.param<int>("connect_compute_attempts", 1);
+  ROS_INFO_STREAM("Using " << connect_compute_attempts << " compute attempts in Connect");
+  if(connect_compute_attempts < 1){
+    ROS_WARN("Invalid value for 'connect_compute_attempts', must be at least 1. will assume 1 instead.");
+    connect_compute_attempts= 1;
+  }
 
   auto joint_interpolation = std::make_shared<solvers::JointInterpolationPlanner>();
+
+  std::shared_ptr<solvers::PipelinePlanner> sampling_planner[] = {
+    std::make_shared<solvers::PipelinePlanner>(),
+    std::make_shared<solvers::PipelinePlanner>(),
+    std::make_shared<solvers::PipelinePlanner>(),
+    std::make_shared<solvers::PipelinePlanner>(),
+  };
+
+  for(size_t i= 0; i < sizeof(sampling_planner)/sizeof(sampling_planner[0]); ++i)
+    sampling_planner[i]->setProperty("goal_joint_tolerance", 1e-5);
 
   // TODO: ignored because it is always overruled by Connect's timeout property
   // sampling_planner->setTimeout(15.0);
@@ -116,9 +141,10 @@ int main(int argc, char **argv) {
 	 // TODO: overload for single planner case (breaks make_unique variadic parameter inference)
 	 auto stage = std::make_unique<stages::Connect>(
 	     "move to pre-grasp pose",
-	     stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+	     stages::Connect::GroupPlannerVector{{"arm", sampling_planner[0]}});
 	 stage->properties().configureInitFrom(
 	     Stage::PARENT); // TODO: convenience-wrapper
+	 stage->setComputeAttempts(connect_compute_attempts);
 	 t.add(std::move(stage));
   }
 
@@ -210,12 +236,13 @@ int main(int argc, char **argv) {
   {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-pour pose",
-        stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+        stages::Connect::GroupPlannerVector{{"arm", sampling_planner[1]}});
     stage->setTimeout(connect_timeout);
     if(with_path_constraint)
       stage->setPathConstraints(upright_constraint);
     stage->properties().configureInitFrom(
         Stage::PARENT); // TODO: convenience-wrapper
+    stage->setComputeAttempts(connect_compute_attempts);
     t.add(std::move(stage));
   }
 
@@ -276,12 +303,13 @@ int main(int argc, char **argv) {
   {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-place pose",
-        stages::Connect::GroupPlannerVector{{"arm", sampling_planner}});
+        stages::Connect::GroupPlannerVector{{"arm", sampling_planner[2]}});
     stage->setTimeout(connect_timeout);
     if(with_path_constraint)
       stage->setPathConstraints(upright_constraint);
     stage->properties().configureInitFrom(
         Stage::PARENT); // TODO: convenience-wrapper
+    stage->setComputeAttempts(connect_compute_attempts);
     t.add(std::move(stage));
   }
 
@@ -370,7 +398,7 @@ int main(int argc, char **argv) {
 
   {
     auto stage =
-        std::make_unique<stages::MoveTo>("move home", sampling_planner);
+        std::make_unique<stages::MoveTo>("move home", sampling_planner[3]);
     stage->properties().configureInitFrom(Stage::PARENT, {"group"});
     stage->setGoal("pour_default");
     t.add(std::move(stage));
