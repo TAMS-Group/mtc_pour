@@ -16,6 +16,7 @@
 #include <moveit/task_constructor/stages/modify_planning_scene.h>
 
 #include <moveit/task_constructor/stages/generate_grasp_pose.h>
+#include <moveit/task_constructor/stages/generate_place_pose.h>
 #include <moveit/task_constructor/stages/generate_pose.h>
 
 #include <moveit/task_constructor/solvers/cartesian_path.h>
@@ -279,7 +280,6 @@ int main(int argc, char **argv) {
   }
 
   auto pouring_approaches = std::make_unique<Alternatives>("pouring");
-  Stage* pouring = pouring_approaches.get();
   auto addPouring = [&pouring_approaches](double direction, std::string name)
   {
     auto stage = std::make_unique<mtc_pour::PourInto>(name);
@@ -304,6 +304,7 @@ int main(int argc, char **argv) {
     p->setCostTerm(std::make_shared<cost::AddConstant>(100));
     pouring_approaches->add( std::move(p) );
   }
+  Stage* pouring = pouring_approaches.get();
   t.add(std::move(pouring_approaches));
 
   // PLACE
@@ -337,7 +338,8 @@ int main(int argc, char **argv) {
   }
 
   {
-    auto stage = std::make_unique<stages::GeneratePose>("place pose");
+    auto stage = std::make_unique<stages::GeneratePlacePose>("place pose");
+    //auto stage = std::make_unique<stages::GeneratePose>("place pose");
     geometry_msgs::PoseStamped p;
     p.header.frame_id = "table_top";
     p.pose.orientation.w = 1;
@@ -345,18 +347,19 @@ int main(int argc, char **argv) {
     p.pose.position.y = 0.35;
     p.pose.position.z = 0.15;
     stage->setPose(p);
-    stage->properties().configureInitFrom(Stage::PARENT);
+    stage->setObject("bottle");
 
     stage->setMonitoredStage(object_grasped);
 
     auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics",
                                                        std::move(stage));
-    wrapper->setMaxIKSolutions(8);
+    wrapper->setMaxIKSolutions(4);
     wrapper->setTimeout(0.5);
     // TODO: optionally in object frame
     wrapper->properties().configureInitFrom(
         Stage::PARENT, {"eef"}); // TODO: convenience wrapper
     wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
+    wrapper->setIKFrame(Eigen::Translation3d(0.05, 0, 0), "s_model_tool0");
     t.add(std::move(wrapper));
   }
 
