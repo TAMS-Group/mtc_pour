@@ -260,21 +260,20 @@ void PourInto::computeInternal(const InterfaceState &input,
     p.header.frame_id = scene.getPlanningFrame();
     p.pose = tf2::toMsg(waypoint);
 
-    rviz_marker_tools::appendFrame(trajectory.markers(), p, 0.1, markerNS());
+    // rviz_marker_tools::appendFrame(trajectory.markers(), p, 0.1, markerNS());
 
-    // visualization_msgs::Marker tip;
-    // tip.ns= markerNS();
-    // tip.header= p.header;
-    // tip.pose= rviz_marker_tools::composePoses(p.pose,
-    // Eigen::Isometry3d(Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(0,1,0))));
-    // tip.color.r= .588;
-    // tip.color.g= .196;
-    // tip.color.b= .588;
-    // tip.color.a= 1.0;
-    //// TODO: rename or move this package! maybe move it in with
-    ///moveit_visual_tools?
-    // rviz_marker_tools::makeArrow(tip, .11, true);
-    // trajectory.markers().push_back(tip);
+    visualization_msgs::Marker tip;
+    tip.ns= markerNS();
+    tip.header= p.header;
+    tip.pose= rviz_marker_tools::composePoses(p.pose,
+    Eigen::Isometry3d(Eigen::AngleAxisd(-M_PI/2, Eigen::Vector3d(0,1,0))));
+    tip.color.r= .588;
+    tip.color.g= .196;
+    tip.color.b= .588;
+    tip.color.a= 1.0;
+    // TODO: rename or move this package! maybe move it in with moveit_visual_tools?
+    rviz_marker_tools::makeArrow(tip, .11, true);
+    trajectory.markers().push_back(tip);
   }
 
   /* specify waypoints for tool link, not for bottle tip */
