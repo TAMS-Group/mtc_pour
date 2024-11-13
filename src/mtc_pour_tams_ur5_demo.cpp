@@ -349,7 +349,7 @@ int main(int argc, char **argv) {
     stage->setPose(p);
     stage->setObject("bottle");
 
-    stage->setMonitoredStage(object_grasped);
+    stage->setMonitoredStage(pouring);
 
     auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics",
                                                        std::move(stage));
