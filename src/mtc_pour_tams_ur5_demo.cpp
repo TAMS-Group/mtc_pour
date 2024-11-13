@@ -21,6 +21,8 @@
 #include <moveit/task_constructor/solvers/pipeline_planner.h>
 #include <moveit/task_constructor/solvers/joint_interpolation.h>
 
+#include <moveit/task_constructor/cost_terms.h>
+
 #include "mtc_pour/demo_utils.hpp"
 
 using namespace moveit::task_constructor;
@@ -241,13 +243,15 @@ int main(int argc, char **argv) {
     t.add(std::move(wrapper));
   }
 
-  Stage* pouring = nullptr;
+  auto pouring_approaches = std::make_unique<Alternatives>("pouring");
+  Stage* pouring = pouring_approaches.get();
+  auto addPouring = [&pouring_approaches](double direction, std::string name)
   {
-    auto stage = std::make_unique<mtc_pour::PourInto>("pouring");
+    auto stage = std::make_unique<mtc_pour::PourInto>(name);
     stage->setBottle("bottle");
     stage->setContainer("glass");
-    stage->setPourOffset(Eigen::Vector3d(0, 0.015, 0.035));
-    stage->setTiltAngle(2.0);
+    stage->setPourOffset(Eigen::Vector3d(0, direction*0.015, 0.035));
+    stage->setTiltAngle(direction*2.0);
     stage->setPourDuration(ros::Duration(4.0));
     {
       geometry_msgs::Vector3Stamped pouring_axis;
@@ -256,12 +260,16 @@ int main(int argc, char **argv) {
       stage->setPouringAxis(pouring_axis);
     }
     stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-    // TODO: This would have unintuitive results:
-    // stage->properties().configureInitFrom(Stage::PARENT);
-    // because it includes "marker_ns"
-    pouring = stage.get();
-    t.add(std::move(stage));
+    return stage;
+  };
+  pouring_approaches->add( addPouring(-1.0, "pour left") );
+  {
+    auto p{ addPouring(1.0, "pour right") };
+    // optionally discouraging solutions from right
+    // p->setCostTerm(std::make_shared<cost::AddConstant>(100));
+    pouring_approaches->add( std::move(p) );
   }
+  t.add(std::move(pouring_approaches));
 
   // PLACE
 
