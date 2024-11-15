@@ -344,7 +344,7 @@ int main(int argc, char **argv) {
     p.header.frame_id = "table_top";
     p.pose.orientation.w = 1;
     p.pose.position.x = -0.15;
-    p.pose.position.y = 0.35;
+    p.pose.position.y = 0.5;
     p.pose.position.z = 0.15;
     stage->setPose(p);
     stage->setObject("bottle");
