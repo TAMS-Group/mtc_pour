@@ -27,6 +27,8 @@
 
 #include "mtc_pour/demo_utils.hpp"
 
+#define M_TAU (2. * M_PI)
+
 using namespace moveit::task_constructor;
 
 static Task* active_task{ nullptr };
@@ -205,7 +207,7 @@ int main(int argc, char **argv) {
     stage->properties().configureInitFrom(Stage::PARENT);
     stage->setPreGraspPose("open");
     stage->setObject("bottle");
-    stage->setAngleDelta(M_PI / 12);
+    stage->setAngleDelta(M_TAU / 20);
 
     stage->setMonitoredStage(current_state);
 
@@ -375,6 +377,7 @@ int main(int argc, char **argv) {
     p.pose.position.z = 0.15;
     stage->setPose(p);
     stage->setObject("bottle");
+    stage->setRotations(20);
 
     stage->setMonitoredStage(pouring);
 
