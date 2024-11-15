@@ -16,4 +16,5 @@
   <depend>rviz_marker_tools</depend>
   <depend>roscpp</depend>
   <depend>moveit_ros_planning_interface</depend>
+  <depend>fmt</depend>
 </package>

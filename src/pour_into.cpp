@@ -54,6 +54,8 @@
 
 #include <rviz_marker_tools/marker_creation.h>
 
+#include <fmt/format.h>
+
 namespace {
 /** Compute prototype waypoints for pouring.
   * This generates a trajectory that pours in the Y-Z axis.
@@ -330,11 +332,8 @@ void PourInto::computeInternal(const InterfaceState &input,
   result->setCurrentState(robot_trajectory->getLastWayPoint());
 
   if (path_fraction < min_path_fraction) {
-    ROS_WARN_STREAM("PourInto only produced motion for "
-                    << path_fraction << " of the way. Rendering invalid");
-    trajectory.setCost(std::numeric_limits<double>::infinity());
-    trajectory.setComment("pouring axis angle " +
-                          std::to_string(tilt_axis_angle));
+    trajectory.markAsFailure(fmt::format("minimal path fraction not reached: {}, pouring axis angle {}",
+                                         path_fraction, tilt_axis_angle));
     return;
   }
 
