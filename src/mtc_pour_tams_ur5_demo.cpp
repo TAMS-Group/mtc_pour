@@ -58,8 +58,35 @@ int main(int argc, char **argv) {
     glass.pose.orientation.w = 1.0;
 
     mtc_pour::cleanup();
-    std::vector<moveit_msgs::CollisionObject> objs;
+
     moveit::planning_interface::PlanningSceneInterface psi;
+    if(pnh.param<bool>("divider", false)){
+      ROS_INFO("Adding divider");
+      moveit_msgs::CollisionObject d;
+      d.id = "divider";
+      d.header.frame_id = "table_top";
+      d.operation = moveit_msgs::CollisionObject::ADD;
+      d.primitives.resize(1);
+      d.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
+      d.primitives[0].dimensions = {0.5, 0.03, 0.45};
+      d.primitive_poses.resize(1);
+      d.primitive_poses[0].position.x = 0.01;
+      d.primitive_poses[0].position.y = -0.01;
+      d.primitive_poses[0].position.z = d.primitives[0].dimensions[2] / 2 + .005;
+      d.primitive_poses[0].orientation.w = 1.0;
+      psi.applyCollisionObject(d);
+    } else {
+      ROS_INFO("No divider");
+      auto objects = psi.getKnownObjectNames();
+      if(std::find(objects.begin(), objects.end(), "divider") != objects.end()){
+        moveit_msgs::CollisionObject d;
+        d.id = "divider";
+        d.operation = moveit_msgs::CollisionObject::REMOVE;
+        psi.applyCollisionObject(d);
+      }
+    }
+
+    std::vector<moveit_msgs::CollisionObject> objs;
     mtc_pour::setupObjects(objs, bottle, glass);
     psi.applyCollisionObjects(objs);
   }
@@ -81,7 +108,7 @@ int main(int argc, char **argv) {
   int connect_compute_attempts = pnh.param<int>("connect_compute_attempts", 1);
   ROS_INFO_STREAM("Using " << connect_compute_attempts << " compute attempts in Connect");
   if(connect_compute_attempts < 1){
-    ROS_WARN("Invalid value for 'connect_compute_attempts', must be at least 1. will assume 1 instead.");
+    ROS_ERROR("Invalid value for 'connect_compute_attempts', must be at least 1. will assume 1 instead.");
     connect_compute_attempts= 1;
   }
 
