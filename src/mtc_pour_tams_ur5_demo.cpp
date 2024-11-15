@@ -301,7 +301,7 @@ int main(int argc, char **argv) {
   {
     auto p{ addPouring(1.0, "pour right") };
     // optionally discouraging solutions from right
-    p->setCostTerm(std::make_shared<cost::AddConstant>(100));
+    // p->setCostTerm(std::make_shared<cost::AddConstant>(100));
     pouring_approaches->add( std::move(p) );
   }
   Stage* pouring = pouring_approaches.get();
@@ -414,6 +414,9 @@ int main(int argc, char **argv) {
     stage->setGoal("pour_default");
     t.add(std::move(stage));
   }
+
+  // t.stages()->setCostTerm(std::make_shared<cost::LinkMotion>("bottle"));
+  t.stages()->setCostTerm(std::make_shared<cost::TrajectoryDuration>());
 
   if(!pnh.param<bool>("introspection", true))
     t.enableIntrospection(false);
