@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_eigen
 )
 
+find_package(fmt REQUIRED)
+
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES mtc_pour_into
