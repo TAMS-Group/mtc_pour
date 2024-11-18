@@ -266,7 +266,7 @@ int main(int argc, char **argv) {
   {
     auto p{ addPouring(1.0, "pour right") };
     // optionally discouraging solutions from right
-    // p->setCostTerm(std::make_shared<cost::AddConstant>(100));
+    p->setCostTerm(std::make_shared<cost::AddConstant>(100));
     pouring_approaches->add( std::move(p) );
   }
   t.add(std::move(pouring_approaches));
