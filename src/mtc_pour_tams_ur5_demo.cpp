@@ -470,8 +470,9 @@ int main(int argc, char **argv) {
     ROS_WARN_STREAM("Planning took "
 	 << (ros::WallTime::now() - start_time).toSec() * 1000.0
 	 << "ms to find "
-	 << t.numSolutions() << " solution(s) with best solution "
-	 << t.solutions().front()->cost()
+	 << t.numSolutions()
+   << " solution(s) with best solution "
+	 << (t.solutions().empty() ?  std::numeric_limits<double>::quiet_NaN() : t.solutions().front()->cost())
 	 );
    active_task = nullptr;
   } catch (InitStageException &e) {
