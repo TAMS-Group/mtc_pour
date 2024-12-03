@@ -209,7 +209,7 @@ int main(int argc, char **argv) {
 
     auto wrapper =
         std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage));
-    wrapper->setMaxIKSolutions(8);
+    wrapper->setMaxIKSolutions(16);
     wrapper->setIKFrame(Eigen::Translation3d(0.05, 0, 0), "s_model_tool0");
     wrapper->setTimeout(0.5);
     // TODO adding this will initialize "target_pose" which is internal (or
@@ -293,7 +293,7 @@ int main(int argc, char **argv) {
 
     auto wrapper =
         std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage));
-    wrapper->setMaxIKSolutions(8);
+    wrapper->setMaxIKSolutions(16);
     wrapper->setTimeout(0.5);
     // TODO adding this will initialize "target_pose" which is internal (or
     // isn't it?)
@@ -379,7 +379,7 @@ int main(int argc, char **argv) {
 
     auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics",
                                                        std::move(stage));
-    wrapper->setMaxIKSolutions(4);
+    wrapper->setMaxIKSolutions(16);
     wrapper->setTimeout(0.5);
     // TODO: optionally in object frame
     wrapper->properties().configureInitFrom(
