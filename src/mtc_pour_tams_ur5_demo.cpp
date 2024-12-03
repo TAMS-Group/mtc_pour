@@ -116,15 +116,11 @@ int main(int argc, char **argv) {
 
   auto joint_interpolation = std::make_shared<solvers::JointInterpolationPlanner>();
 
-  std::shared_ptr<solvers::PipelinePlanner> sampling_planner[] = {
-    std::make_shared<solvers::PipelinePlanner>(),
-    std::make_shared<solvers::PipelinePlanner>(),
-    std::make_shared<solvers::PipelinePlanner>(),
-    std::make_shared<solvers::PipelinePlanner>(),
-  };
-
-  for(size_t i= 0; i < sizeof(sampling_planner)/sizeof(sampling_planner[0]); ++i)
-    sampling_planner[i]->setProperty("goal_joint_tolerance", 1e-5);
+  std::array<solvers::PlannerInterfacePtr, 4> sampling_planner;
+  sampling_planner[0] = std::make_shared<solvers::PipelinePlanner>();
+  sampling_planner[0]->setProperty("goal_joint_tolerance", 1e-5);
+  for (size_t i = 1; i < sampling_planner.size(); ++i)
+    sampling_planner[i] = sampling_planner[0]->clone();
 
   // TODO: ignored because it is always overruled by Connect's timeout property
   // sampling_planner->setTimeout(15.0);
@@ -151,8 +147,8 @@ int main(int argc, char **argv) {
   ROS_INFO(with_path_constraint ? "Using upright constraint" : "Ignoring upright constraint");
 
   auto cartesian_planner = std::make_shared<solvers::CartesianPath>();
-  cartesian_planner->setMaxVelocityScalingFactor(.3);
-  cartesian_planner->setMaxAccelerationScalingFactor(.3);
+  cartesian_planner->setMaxVelocityScalingFactor(1);
+  cartesian_planner->setMaxAccelerationScalingFactor(1);
   cartesian_planner->setStepSize(.002);
 
   t.setProperty("group", "arm");
