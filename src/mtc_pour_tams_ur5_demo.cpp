@@ -40,6 +40,7 @@ void sig_handler(int s){
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "mtc_pouring");
+  signal(SIGINT, sig_handler);
 
   ros::AsyncSpinner spinner(2);
   ros::NodeHandle pnh("~");
@@ -458,7 +459,6 @@ int main(int argc, char **argv) {
   // TODO: try { t.validate(); } catch() {}
 
   active_task = &t;
-  signal(SIGINT, sig_handler);
 
   try {
     auto start_time { ros::WallTime::now() };
@@ -470,10 +470,11 @@ int main(int argc, char **argv) {
    << " solution(s) with best solution "
 	 << (t.solutions().empty() ?  std::numeric_limits<double>::quiet_NaN() : t.solutions().front()->cost())
 	 );
-   active_task = nullptr;
   } catch (InitStageException &e) {
     ROS_ERROR_STREAM(e);
+    return 1;
   }
+  active_task = nullptr;
 
   if (t.numSolutions() == 0) {
     ROS_ERROR("No solution found.");
