@@ -332,7 +332,7 @@ void PourInto::computeInternal(const InterfaceState &input,
   result->setCurrentState(robot_trajectory->getLastWayPoint());
 
   if (path_fraction < min_path_fraction) {
-    trajectory.markAsFailure(fmt::format("minimal path fraction not reached: {}, pouring axis angle {}",
+    trajectory.markAsFailure(fmt::format("minimal path fraction not reached: {:.3f}, pouring axis angle {:3f}",
                                          path_fraction, tilt_axis_angle));
     return;
   }
