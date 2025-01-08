@@ -152,7 +152,9 @@ int main(int argc, char **argv) {
   cartesian_planner->setMaxAccelerationScalingFactor(1);
   cartesian_planner->setStepSize(.002);
 
-  t.setProperty("group", "arm");
+  std::string const arm_group = "arm";
+  std::string const arm_group_connect = "arm";
+  t.setProperty("group", arm_group);
   t.setProperty("eef", "gripper");
   t.setProperty("gripper", "gripper"); // TODO: use this
 
@@ -176,13 +178,14 @@ int main(int argc, char **argv) {
 	 // TODO: overload for single planner case (breaks make_unique variadic parameter inference)
 	 auto stage = std::make_unique<stages::Connect>(
 	     "move to pre-grasp pose",
-	     stages::Connect::GroupPlannerVector{{"arm", sampling_planner[0]}});
+	     stages::Connect::GroupPlannerVector{{arm_group_connect, sampling_planner[0]}});
 	 stage->properties().configureInitFrom(
 	     Stage::PARENT); // TODO: convenience-wrapper
 	 stage->setComputeAttempts(connect_compute_attempts);
 	 t.add(std::move(stage));
   }
 
+  auto pick = std::make_unique<SerialContainer>("pick");
   {
     auto stage = std::make_unique<stages::MoveRelative>("approach object",
                                                         cartesian_planner);
@@ -195,7 +198,7 @@ int main(int argc, char **argv) {
     vec.header.frame_id = "s_model_tool0";
     vec.vector.x = 1.0;
     stage->setDirection(vec);
-    t.add(std::move(stage));
+    pick->add(std::move(stage));
   }
 
   {
@@ -205,21 +208,23 @@ int main(int argc, char **argv) {
     stage->setPreGraspPose("open");
     stage->setObject("bottle");
     stage->setAngleDelta(M_TAU / 20);
-
+    stage->setCostTerm(std::make_shared<cost::UniformRandom>());
     stage->setMonitoredStage(current_state);
 
     auto wrapper =
         std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage));
     wrapper->setMaxIKSolutions(16);
     wrapper->setIKFrame(Eigen::Translation3d(0.05, 0, 0), "s_model_tool0");
-    wrapper->setTimeout(0.5);
+    wrapper->setTimeout(0.02);
     // TODO adding this will initialize "target_pose" which is internal (or
     // isn't it?)
     // wrapper->properties().configureInitFrom(Stage::PARENT);
     wrapper->properties().configureInitFrom(
         Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+    wrapper->setGroup(arm_group_connect);
     wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
-    t.add(std::move(wrapper));
+    wrapper->setCostTerm(std::make_shared<cost::Constant>(0.0));
+    pick->add(std::move(wrapper));
   }
 
   {
@@ -230,7 +235,7 @@ int main(int argc, char **argv) {
                                ->getJointModelGroup("gripper")
                                ->getLinkModelNamesWithCollisionGeometry(),
                            true);
-    t.add(std::move(stage));
+    pick->add(std::move(stage));
   }
 
   {
@@ -239,7 +244,7 @@ int main(int argc, char **argv) {
     stage->properties().property("group").configureInitFrom(
         Stage::PARENT, "gripper"); // TODO this is not convenient
     stage->setGoal("closed");
-    t.add(std::move(stage));
+    pick->add(std::move(stage));
   }
 
   Stage *object_grasped = nullptr;
@@ -247,7 +252,7 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::ModifyPlanningScene>("attach object");
     stage->attachObject("bottle", "s_model_tool0");
     object_grasped = stage.get();
-    t.add(std::move(stage));
+    pick->add(std::move(stage));
   }
 
   Stage *object_lifted = nullptr;
@@ -265,13 +270,15 @@ int main(int argc, char **argv) {
     vec.vector.z = 1.0;
     stage->setDirection(vec);
     object_lifted = stage.get();
-    t.add(std::move(stage));
+    pick->add(std::move(stage));
   }
+
+  t.add(std::move(pick));
 
   {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-pour pose",
-        stages::Connect::GroupPlannerVector{{"arm", sampling_planner[1]}});
+        stages::Connect::GroupPlannerVector{{arm_group_connect, sampling_planner[1]}});
     stage->setTimeout(connect_timeout);
     if(with_path_constraint)
       stage->setPathConstraints(upright_constraint);
@@ -281,6 +288,7 @@ int main(int argc, char **argv) {
     t.add(std::move(stage));
   }
 
+  auto pour = std::make_unique<SerialContainer>("pour");
   {
     auto stage = std::make_unique<stages::GeneratePose>("pose above glass");
     geometry_msgs::PoseStamped p;
@@ -295,14 +303,14 @@ int main(int argc, char **argv) {
     auto wrapper =
         std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage));
     wrapper->setMaxIKSolutions(16);
-    wrapper->setTimeout(0.5);
+    wrapper->setTimeout(0.02);
     // TODO adding this will initialize "target_pose" which is internal (or
     // isn't it?)
     // wrapper->properties().configureInitFrom(Stage::PARENT);
     wrapper->properties().configureInitFrom(
-        Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+        Stage::PARENT, {"eef", "group"}); // TODO: convenience wrapper
     wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
-    t.add(std::move(wrapper));
+    pour->add(std::move(wrapper));
   }
 
   auto pouring_approaches = std::make_unique<Alternatives>("pouring");
@@ -323,22 +331,23 @@ int main(int argc, char **argv) {
     stage->properties().configureInitFrom(Stage::PARENT, {"group"});
     return stage;
   };
-  pouring_approaches->add( addPouring(-1.0, "pour left") );
-  {
-    auto p{ addPouring(1.0, "pour right") };
-    // optionally discouraging solutions from right
-    // p->setCostTerm(std::make_shared<cost::AddConstant>(100));
-    pouring_approaches->add( std::move(p) );
-  }
+  std::string const pour_direction = pnh.param<std::string>("pour", "left");
+  if(pour_direction == "left" || pour_direction == "both")
+    pouring_approaches->add( addPouring(1.0, "pour left") );
+  else if(pour_direction == "right" || pour_direction == "both")
+    pouring_approaches->add( addPouring(-1.0, "pour right") );
+
   Stage* pouring = pouring_approaches.get();
-  t.add(std::move(pouring_approaches));
+  pour->add(std::move(pouring_approaches));
+
+  t.add(std::move(pour));
 
   // PLACE
 
   {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-place pose",
-        stages::Connect::GroupPlannerVector{{"arm", sampling_planner[2]}});
+        stages::Connect::GroupPlannerVector{{arm_group_connect, sampling_planner[2]}});
     stage->setTimeout(connect_timeout);
     if(with_path_constraint)
       stage->setPathConstraints(upright_constraint);
@@ -348,6 +357,7 @@ int main(int argc, char **argv) {
     t.add(std::move(stage));
   }
 
+  auto place = std::make_unique<SerialContainer>("place");
   {
     auto stage = std::make_unique<stages::MoveRelative>("put down object",
                                                         cartesian_planner);
@@ -360,7 +370,7 @@ int main(int argc, char **argv) {
     vec.header.frame_id = "s_model_tool0";
     vec.vector.z = -1.0;
     stage->setDirection(vec);
-    t.add(std::move(stage));
+    place->add(std::move(stage));
   }
 
   {
@@ -375,20 +385,21 @@ int main(int argc, char **argv) {
     stage->setPose(p);
     stage->setObject("bottle");
     stage->setRotations(20);
+    stage->setCostTerm(std::make_shared<cost::UniformRandom>());
 
     stage->setMonitoredStage(pouring);
 
     auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics",
                                                        std::move(stage));
     wrapper->setMaxIKSolutions(16);
-    wrapper->setTimeout(0.5);
+    wrapper->setTimeout(0.02);
     // TODO: optionally in object frame
     wrapper->properties().configureInitFrom(
-        Stage::PARENT, {"eef"}); // TODO: convenience wrapper
+        Stage::PARENT, {"eef", "group"}); // TODO: convenience wrapper
     wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
     wrapper->setIKFrame(Eigen::Translation3d(0.05, 0, 0), "s_model_tool0");
-    t.add(std::move(wrapper));
-  }
+    place->add(std::move(wrapper));
+}
 
   {
     auto stage =
@@ -396,7 +407,7 @@ int main(int argc, char **argv) {
     stage->properties().property("group").configureInitFrom(
         Stage::PARENT, "gripper"); // TODO this is not convenient
     stage->setGoal("open");
-    t.add(std::move(stage));
+    place->add(std::move(stage));
   }
 
   {
@@ -407,14 +418,14 @@ int main(int argc, char **argv) {
                                ->getJointModelGroup("gripper")
                                ->getLinkModelNamesWithCollisionGeometry(),
                            false);
-    t.add(std::move(stage));
+    place->add(std::move(stage));
   }
 
   {
     auto stage = std::make_unique<stages::ModifyPlanningScene>("detach object");
     stage->detachObject("bottle", "s_model_tool0");
     object_grasped = stage.get();
-    t.add(std::move(stage));
+    place->add(std::move(stage));
   }
 
   {
@@ -431,19 +442,22 @@ int main(int argc, char **argv) {
     vec.vector.x = -1.0;
     vec.vector.z = 0.75;
     stage->setDirection(vec);
-    t.add(std::move(stage));
+    place->add(std::move(stage));
   }
+
+  t.add(std::move(place));
 
   {
     auto stage =
         std::make_unique<stages::MoveTo>("move home", sampling_planner[3]);
-    stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+    // stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+    stage->setGroup(arm_group_connect);
     stage->setGoal("pour_default");
     t.add(std::move(stage));
   }
 
-  // t.stages()->setCostTerm(std::make_shared<cost::LinkMotion>("bottle"));
-  t.stages()->setCostTerm(std::make_shared<cost::TrajectoryDuration>());
+  t.stages()->setCostTerm(std::make_shared<cost::LinkMotion>("bottle"));
+  // t.stages()->setCostTerm(std::make_shared<cost::TrajectoryDuration>());
 
   if(!pnh.param<bool>("introspection", true))
     t.enableIntrospection(false);
