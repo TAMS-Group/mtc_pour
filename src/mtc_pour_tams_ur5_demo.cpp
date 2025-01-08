@@ -127,7 +127,9 @@ int main(int argc, char **argv) {
   // sampling_planner->setTimeout(15.0);
   // pipeline->setPlannerId("");
 
-  std::chrono::duration<double> connect_timeout(1.0);
+  std::chrono::duration<double> connect_timeout{ pnh.param<double>("connect_timeout", .5) };
+  ROS_INFO_STREAM("Using " << connect_compute_attempts << " timeout in Connect");
+
 
   // don't spill liquid
   moveit_msgs::Constraints upright_constraint;
