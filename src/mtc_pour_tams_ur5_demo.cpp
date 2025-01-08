@@ -94,8 +94,29 @@ int main(int argc, char **argv) {
     psi.applyCollisionObjects(objs);
   }
 
-  Task t("my_task");
+  enum {
+    IK_CONDITION_CLOSEST,
+    IK_CONDITION_ALL_INITIAL,
+    IK_CONDITION_ALL,
+  } ik;
+
+  std::string const ik_condition_str = pnh.param<std::string>("ik_condition", "all");
+  if (ik_condition_str == "all"){
+    ik = IK_CONDITION_ALL;
+  } else if (ik_condition_str == "all_initial"){
+    ik = IK_CONDITION_ALL_INITIAL;
+  } else if (ik_condition_str == "closest"){
+    ik = IK_CONDITION_CLOSEST;
+  } else {
+    ROS_FATAL_STREAM("Invalid ik_condition '" << ik_condition_str << "'");
+    return 1;
+  }
+
+  Task t{"my_task", false};
   t.loadRobotModel();
+
+  if (pnh.param<bool>("introspection", true))
+    t.enableIntrospection(true);
 
   int workers = pnh.param<int>("workers", -1);
   if (workers >= 0){
@@ -154,9 +175,23 @@ int main(int argc, char **argv) {
   cartesian_planner->setMaxAccelerationScalingFactor(1);
   cartesian_planner->setStepSize(.002);
 
-  std::string const arm_group = "arm";
-  std::string const arm_group_connect = "arm";
-  t.setProperty("group", arm_group);
+  std::string const arm_group_path_planning = "arm";
+
+  switch(ik){
+    case IK_CONDITION_ALL:
+      t.setProperty("group", "arm");
+      t.setProperty("group_grasp", "arm");
+      break;
+    case IK_CONDITION_ALL_INITIAL:
+      t.setProperty("group", "arm_closest_ik");
+      t.setProperty("group_grasp", "arm");
+      break;
+    case IK_CONDITION_CLOSEST:
+      t.setProperty("group", "arm_closest_ik");
+      t.setProperty("group_grasp", "arm_closest_ik");
+      break;
+  }
+
   t.setProperty("eef", "gripper");
   t.setProperty("gripper", "gripper"); // TODO: use this
 
@@ -180,7 +215,7 @@ int main(int argc, char **argv) {
 	 // TODO: overload for single planner case (breaks make_unique variadic parameter inference)
 	 auto stage = std::make_unique<stages::Connect>(
 	     "move to pre-grasp pose",
-	     stages::Connect::GroupPlannerVector{{arm_group_connect, sampling_planner[0]}});
+	     stages::Connect::GroupPlannerVector{{arm_group_path_planning, sampling_planner[0]}});
 	 stage->properties().configureInitFrom(
 	     Stage::PARENT); // TODO: convenience-wrapper
 	 stage->setComputeAttempts(connect_compute_attempts);
@@ -192,8 +227,10 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::MoveRelative>("approach object",
                                                         cartesian_planner);
     stage->setMarkerNS("approach");
-    stage->properties().set("link", "s_model_tool0");
+    stage->setIKFrame("s_model_tool0");
+    stage->setGroup(arm_group_path_planning);
     stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+
     stage->setMinMaxDistance(.05, .15);
 
     geometry_msgs::Vector3Stamped vec;
@@ -215,7 +252,11 @@ int main(int argc, char **argv) {
 
     auto wrapper =
         std::make_unique<stages::ComputeIK>("grasp pose", std::move(stage));
-    wrapper->setMaxIKSolutions(16);
+    if(ik == IK_CONDITION_CLOSEST){
+      wrapper->setMaxIKSolutions(1);
+    } else {
+      wrapper->setMaxIKSolutions(16);
+    }
     wrapper->setIKFrame(Eigen::Translation3d(0.05, 0, 0), "s_model_tool0");
     wrapper->setTimeout(0.02);
     // TODO adding this will initialize "target_pose" which is internal (or
@@ -223,7 +264,7 @@ int main(int argc, char **argv) {
     // wrapper->properties().configureInitFrom(Stage::PARENT);
     wrapper->properties().configureInitFrom(
         Stage::PARENT, {"eef"}); // TODO: convenience wrapper
-    wrapper->setGroup(arm_group_connect);
+    wrapper->properties().property("group").configureInitFrom(Stage::PARENT, "group_grasp");
     wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
     wrapper->setCostTerm(std::make_shared<cost::Constant>(0.0));
     pick->add(std::move(wrapper));
@@ -261,7 +302,7 @@ int main(int argc, char **argv) {
   {
     auto stage = std::make_unique<stages::MoveRelative>("lift object",
                                                         cartesian_planner);
-    stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+    stage->setGroup(arm_group_path_planning);
     stage->setMinMaxDistance(.08, .13);
     stage->setIKFrame("s_model_tool0"); // TODO property for frame
 
@@ -280,7 +321,7 @@ int main(int argc, char **argv) {
   {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-pour pose",
-        stages::Connect::GroupPlannerVector{{arm_group_connect, sampling_planner[1]}});
+        stages::Connect::GroupPlannerVector{{arm_group_path_planning, sampling_planner[1]}});
     stage->setTimeout(connect_timeout);
     if(with_path_constraint)
       stage->setPathConstraints(upright_constraint);
@@ -304,7 +345,11 @@ int main(int argc, char **argv) {
 
     auto wrapper =
         std::make_unique<stages::ComputeIK>("pre-pour pose", std::move(stage));
-    wrapper->setMaxIKSolutions(16);
+    if(ik != IK_CONDITION_ALL){
+      wrapper->setMaxIKSolutions(1);
+    } else {
+      wrapper->setMaxIKSolutions(16);
+    }
     wrapper->setTimeout(0.02);
     // TODO adding this will initialize "target_pose" which is internal (or
     // isn't it?)
@@ -316,7 +361,7 @@ int main(int argc, char **argv) {
   }
 
   auto pouring_approaches = std::make_unique<Alternatives>("pouring");
-  auto addPouring = [&pouring_approaches](double direction, std::string name)
+  auto addPouring = [&pouring_approaches,&arm_group_path_planning](double direction, std::string name)
   {
     auto stage = std::make_unique<mtc_pour::PourInto>(name);
     stage->setBottle("bottle");
@@ -330,7 +375,7 @@ int main(int argc, char **argv) {
       pouring_axis.vector.x = 1.0;
       stage->setPouringAxis(pouring_axis);
     }
-    stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+    stage->setGroup(arm_group_path_planning);
     return stage;
   };
   std::string const pour_direction = pnh.param<std::string>("pour", "left");
@@ -349,7 +394,7 @@ int main(int argc, char **argv) {
   {
     auto stage = std::make_unique<stages::Connect>(
         "move to pre-place pose",
-        stages::Connect::GroupPlannerVector{{arm_group_connect, sampling_planner[2]}});
+        stages::Connect::GroupPlannerVector{{arm_group_path_planning, sampling_planner[2]}});
     stage->setTimeout(connect_timeout);
     if(with_path_constraint)
       stage->setPathConstraints(upright_constraint);
@@ -364,8 +409,8 @@ int main(int argc, char **argv) {
     auto stage = std::make_unique<stages::MoveRelative>("put down object",
                                                         cartesian_planner);
     stage->setMarkerNS("approach-place");
-    stage->properties().set("link", "s_model_tool0");
-    stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+    stage->setIKFrame("s_model_tool0");
+    stage->setGroup(arm_group_path_planning);
     stage->setMinMaxDistance(.08, .13);
 
     geometry_msgs::Vector3Stamped vec;
@@ -393,7 +438,11 @@ int main(int argc, char **argv) {
 
     auto wrapper = std::make_unique<stages::ComputeIK>("place pose kinematics",
                                                        std::move(stage));
-    wrapper->setMaxIKSolutions(16);
+    if(ik != IK_CONDITION_ALL){
+      wrapper->setMaxIKSolutions(1);
+    } else {
+      wrapper->setMaxIKSolutions(16);
+    }
     wrapper->setTimeout(0.02);
     // TODO: optionally in object frame
     wrapper->properties().configureInitFrom(
@@ -433,7 +482,7 @@ int main(int argc, char **argv) {
   {
     auto stage = std::make_unique<stages::MoveRelative>("retreat after place",
                                                         cartesian_planner);
-    stage->properties().configureInitFrom(Stage::PARENT, {"group"});
+    stage->setGroup(arm_group_path_planning);
     stage->setMinMaxDistance(.12, .25);
     stage->setIKFrame("s_model_tool0"); // TODO property for frame
 
@@ -453,7 +502,7 @@ int main(int argc, char **argv) {
     auto stage =
         std::make_unique<stages::MoveTo>("move home", sampling_planner[3]);
     // stage->properties().configureInitFrom(Stage::PARENT, {"group"});
-    stage->setGroup(arm_group_connect);
+    stage->setGroup(arm_group_path_planning);
     stage->setGoal("pour_default");
     t.add(std::move(stage));
   }
