@@ -10,6 +10,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_eigen
 )
 
+find_package(backward_ros QUIET)
+
 find_package(fmt REQUIRED)
 
 catkin_package(
