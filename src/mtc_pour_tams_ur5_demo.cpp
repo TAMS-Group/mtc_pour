@@ -118,6 +118,8 @@ int main(int argc, char **argv) {
   if (pnh.param<bool>("introspection", true))
     t.enableIntrospection(true);
 
+  t.setMaxSolutions(pnh.param<int>("solutions", 1));
+
   int workers = pnh.param<int>("workers", -1);
   if (workers >= 0){
     ROS_INFO_STREAM("Setting " << workers << " worker threads");
@@ -526,15 +528,33 @@ int main(int argc, char **argv) {
   active_task = &t;
 
   try {
-    auto start_time { ros::WallTime::now() };
-    t.plan(pnh.param<int>("solutions", 1));
-    ROS_WARN_STREAM("Planning took "
-	 << (ros::WallTime::now() - start_time).toSec() * 1000.0
-	 << "ms to find "
-	 << t.numSolutions()
-   << " solution(s) with best solution "
-	 << (t.solutions().empty() ?  std::numeric_limits<double>::quiet_NaN() : t.solutions().front()->cost())
-	 );
+    ROS_INFO("Start searching for task solutions");
+    ros::WallTime end_time;
+    std::vector<double> costs;
+    costs.reserve(t.maxSolutions() ? t.maxSolutions()+10 : 1000);
+    auto solutions = t.maxSolutions() > 0 ? t.maxSolutions() : std::numeric_limits<size_t>::max();
+    t.addSolutionCallback([&end_time, &t, solutions, &costs](const SolutionBase& s) {
+      if (end_time.isZero() && t.numSolutions() >= solutions && !s.isFailure())
+        end_time = ros::WallTime::now();
+      costs.push_back(s.cost());
+    });
+    t.init();
+    ros::WallTime start_time{ ros::WallTime::now() };
+    auto result = static_cast<bool>(t.plan());
+    if (end_time.isZero()) {
+      end_time = ros::WallTime::now();
+    }
+
+    ROS_WARN_STREAM("Planning took "  << (ros::WallTime::now() - start_time).toSec() * 1000.0 << "ms to find "
+                                      << t.numSolutions() << " solution(s) with best solution "
+                                      << (t.numSolutions() > 0 ? t.solutions().front()->cost() :
+                                                                        std::numeric_limits<double>::infinity()));
+    std::stringstream ss;
+    ss << "All Costs: ";
+    for (auto const& cost : costs) {
+      ss << cost << " ";
+    }
+    ROS_WARN_STREAM(ss.str());
   } catch (InitStageException &e) {
     ROS_ERROR_STREAM(e);
     return 1;
