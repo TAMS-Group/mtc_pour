@@ -71,10 +71,10 @@ int main(int argc, char **argv) {
       d.operation = moveit_msgs::CollisionObject::ADD;
       d.primitives.resize(1);
       d.primitives[0].type = shape_msgs::SolidPrimitive::BOX;
-      d.primitives[0].dimensions = {0.5, 0.03, 0.45};
+      d.primitives[0].dimensions = {0.45, 0.02, 0.25};
       d.primitive_poses.resize(1);
-      d.primitive_poses[0].position.x = 0.01;
-      d.primitive_poses[0].position.y = -0.01;
+      d.primitive_poses[0].position.x = -0.1;
+      d.primitive_poses[0].position.y = 0.0;
       d.primitive_poses[0].position.z = d.primitives[0].dimensions[2] / 2 + .005;
       d.primitive_poses[0].orientation.w = 1.0;
       psi.applyCollisionObject(d);
