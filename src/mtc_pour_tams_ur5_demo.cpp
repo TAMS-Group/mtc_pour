@@ -112,6 +112,15 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  // random uint generator
+  std::random_device rd;
+  std::default_random_engine gen(rd());
+  std::uniform_int_distribution<uint32_t> seed_dist(0, UINT32_MAX);
+  auto rnd_seed = [&gen, &seed_dist](){
+    ROS_INFO_STREAM("random seed: " << seed_dist(gen));
+    return seed_dist(gen);
+    };
+
   Task t{"my_task", false};
   t.loadRobotModel();
 
@@ -249,7 +258,7 @@ int main(int argc, char **argv) {
     stage->setPreGraspPose("open");
     stage->setObject("bottle");
     stage->setAngleDelta(M_TAU / 20);
-    stage->setCostTerm(std::make_shared<cost::UniformRandom>());
+    stage->setCostTerm(std::make_shared<cost::UniformRandom>(rnd_seed()));
     stage->setMonitoredStage(current_state);
 
     auto wrapper =
@@ -268,7 +277,7 @@ int main(int argc, char **argv) {
         Stage::PARENT, {"eef"}); // TODO: convenience wrapper
     wrapper->properties().property("group").configureInitFrom(Stage::PARENT, "group_grasp");
     wrapper->properties().configureInitFrom(Stage::INTERFACE, {"target_pose"});
-    wrapper->setCostTerm(std::make_shared<cost::Constant>(0.0));
+    // wrapper->setCostTerm(std::make_shared<cost::UniformRandom>());
     pick->add(std::move(wrapper));
   }
 
@@ -434,7 +443,7 @@ int main(int argc, char **argv) {
     stage->setPose(p);
     stage->setObject("bottle");
     stage->setRotations(20);
-    stage->setCostTerm(std::make_shared<cost::UniformRandom>());
+    stage->setCostTerm(std::make_shared<cost::UniformRandom>(rnd_seed()));
 
     stage->setMonitoredStage(pouring);
 
@@ -509,7 +518,16 @@ int main(int argc, char **argv) {
     t.add(std::move(stage));
   }
 
-  t.stages()->setCostTerm(std::make_shared<cost::LinkMotion>("bottle"));
+  t.stages()->setCostTerm(
+    [
+      bottle=std::make_shared<cost::LinkMotion>("bottle"),
+      eef=std::make_shared<cost::LinkMotion>("s_model_tool0")
+    ](auto solution){
+      std::string _;
+      return (*bottle)(solution, _) + (*eef)(solution, _);
+    }
+    );
+  // t.stages()->setCostTerm(std::make_shared<cost::LinkMotion>("bottle"));
   // t.stages()->setCostTerm(std::make_shared<cost::TrajectoryDuration>());
 
   if(!pnh.param<bool>("introspection", true))
