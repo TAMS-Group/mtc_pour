@@ -159,8 +159,9 @@ int main(int argc, char **argv) {
   // sampling_planner->setTimeout(15.0);
   // pipeline->setPlannerId("");
 
+  using namespace std::chrono_literals;
   std::chrono::duration<double> connect_timeout{ pnh.param<double>("connect_timeout", .5) };
-  ROS_INFO_STREAM("Using " << connect_compute_attempts << " timeout in Connect");
+  ROS_INFO_STREAM("Using " << (connect_timeout/1s) << " timeout in Connect");
 
 
   // don't spill liquid
